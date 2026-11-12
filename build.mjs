@@ -1,7 +1,9 @@
 import fs from 'node:fs';
-const src = fs.readFileSync('src/engine.js', 'utf8');
-const names = [...src.matchAll(/^export (?:const|function\*?|let)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
-const body = src.replace(/^export /gm, '');
+// ghép các module (engine trước, catalog sau): bỏ import/re-export, gom tên export
+const files = ['src/engine.js', 'src/catalog.js'].map((f) => fs.readFileSync(f, 'utf8'));
+const src = files.join('\n');
+const names = [...new Set([...src.matchAll(/^export (?:const|function\*?|let)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]))];
+const body = files.map((f) => f.replace(/^import [^;]+;\s*$/gm, '').replace(/^export \{[^}]*\};?\s*$/gm, '').replace(/^export /gm, '')).join('\n');
 const iife = `window.BalatroEngine = (function(){\n${body}\nreturn { ${names.join(', ')} };\n})();`;
 const ui = fs.readFileSync('src/ui.html', 'utf8');
 fs.mkdirSync('dist', { recursive: true });

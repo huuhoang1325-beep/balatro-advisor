@@ -1,176 +1,195 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>Balatro Advisor</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
-/* Bố cục: app một màn hình như mặt bàn nỉ; trên = thanh tiến độ blind, giữa = tay bài + gợi ý, dưới = thanh tab */
+/* Bố cục: bảng hẹp nổi cạnh game. Trên = trạng thái blind (2 dòng), giữa = hành động + gợi ý, dưới = 4 tab. */
 :root {
-  --felt: #0d2622;      /* nền bàn */
-  --panel: #143630;     /* khối nổi */
-  --panel-2: #1b443c;   /* nút, ô nhập */
-  --line: #2b5a50;
-  --ink: #ecf2ee;
-  --muted: #98b3aa;
-  --chips: #3d8fe6;     /* màu chip trong game */
-  --mult: #e8484e;      /* màu mult trong game */
-  --gold: #eab83f;      /* tiền */
-  --go: #4cc98f;        /* nên đánh */
-  --paper: #f3efe4;     /* mặt lá bài */
-  --paper-ink: #1d1d1f;
-  --font-display: "Pixelify Sans", "Courier New", monospace;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --felt: #0e2420;      /* nền */
+  --panel: #163a33;     /* khối nổi */
+  --panel-2: #1f4a41;   /* nút, ô nhập */
+  --line: #2f5f54;
+  --ink: #f1f5f2;
+  --muted: #a9c2b9;
+  --chips: #3d8fe6;     /* chip (xanh dương như game) */
+  --mult: #ef5056;      /* mult (đỏ như game) */
+  --gold: #f0bd45;      /* tiền */
+  --go: #4fd096;        /* nên làm */
+  --paper: #f5f2ea;
+  --paper-ink: #1b1b1d;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --num: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
   color-scheme: dark;
 }
 html, body { height: 100%; }
-body { background: var(--felt); color: var(--ink); font-family: var(--font-body); font-size: 14px; }
+body { background: var(--felt); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.4; }
 * { box-sizing: border-box; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-.app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; }
+.app { height: 100%; display: flex; flex-direction: column; max-width: 600px; margin: 0 auto; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; padding-block: 12px 20px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; }
 .scroll > * { flex-shrink: 0; }
-.scroll { flex: 1; min-height: 0; overflow-y: auto; padding-block: 12px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; }
 
-/* Thanh blind */
-.blind { padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
-.blind-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.brand { font-family: var(--font-display); font-size: 18px; letter-spacing: .02em; margin-right: auto; }
-.brand b { color: var(--mult); }
-.sel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 32px; }
-.meter { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
-.bar { height: 8px; background: var(--felt); border-radius: 4px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--go); width: 0; transition: width .3s; }
-.meter-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 13px; }
-.meter-num .need { color: var(--mult); }
-.counters { display: flex; gap: 8px; flex-wrap: wrap; }
-.ctr { display: flex; align-items: center; gap: 2px; background: var(--felt); border-radius: 6px; padding: 2px; }
-.ctr span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 0 4px; }
-.ctr b { font-family: var(--font-num); min-width: 3ch; text-align: center; }
+/* Trạng thái */
+.status { background: var(--panel); border-bottom: 1px solid var(--line); padding-block: 8px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); display: grid; gap: 8px; }
+.row1 { display: flex; align-items: center; gap: 10px; }
+.blindbtn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-weight: 600; white-space: nowrap; }
+.prog { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.prog .bar { height: 6px; background: var(--felt); border-radius: 3px; overflow: hidden; }
+.prog .bar i { display: block; height: 100%; width: 0; background: var(--go); }
+.prog .nums { font-family: var(--num); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog .need { color: var(--mult); }
+.row2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ctr { display: flex; align-items: center; justify-content: space-between; background: var(--felt); border-radius: 8px; padding: 2px; }
+.ctr span { font-size: 13px; color: var(--muted); padding-left: 6px; }
+.ctr b { font-family: var(--num); font-size: 17px; min-width: 2.2ch; text-align: center; }
 .ctr.h b { color: var(--chips); } .ctr.d b { color: var(--mult); } .ctr.m b { color: var(--gold); }
-.ctr button { width: 28px; height: 28px; border: 0; border-radius: 4px; background: var(--panel-2); }
+.ctr button { width: 30px; height: 30px; border: 0; border-radius: 6px; background: var(--panel-2); font-size: 18px; line-height: 1; }
+
+/* Nút */
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions.one { grid-template-columns: 1fr; }
+.btn { min-height: 46px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); font-weight: 600; font-size: 16px; }
+.btn.small { min-height: 38px; font-size: 14px; padding: 0 10px; }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: #2a1f05; }
+.btn.go { background: var(--go); border-color: var(--go); color: #05281a; }
+.btn.danger { background: transparent; border-color: var(--mult); color: #ff9da1; }
+.btn.ghost { background: transparent; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > .grow { flex: 1; }
+
+/* Thẻ kết quả */
+.result { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.result.play { border-color: var(--go); } .result.discard { border-color: var(--mult); } .result.info { border-color: var(--gold); }
+.verdict { font-size: 22px; font-weight: 800; letter-spacing: .01em; }
+.result.play .verdict { color: var(--go); } .result.discard .verdict { color: var(--mult); } .result.info .verdict { color: var(--gold); }
+.cards-inline { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipcard { background: var(--paper); color: var(--paper-ink); border-radius: 6px; padding: 2px 8px; font-weight: 700; font-family: var(--num); }
+.chipcard.red { color: #c8242d; }
+.score { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 15px; }
+.score .c { background: var(--chips); color: #fff; padding: 1px 6px; border-radius: 4px; }
+.score .m { background: var(--mult); color: #fff; padding: 1px 6px; border-radius: 4px; }
+.why { color: var(--muted); margin: 0; font-size: 15px; }
+.alts { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.alts div { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 4px; }
+
+/* Danh sách hành động shop */
+.plan { display: grid; gap: 6px; }
+.step { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: var(--felt); border-radius: 10px; padding: 8px 10px; }
+.step .tag { font-size: 12px; font-weight: 800; padding: 3px 7px; border-radius: 6px; letter-spacing: .03em; }
+.step.buy .tag { background: var(--go); color: #05281a; }
+.step.skip { opacity: .7; } .step.skip .tag { background: var(--line); color: var(--muted); }
+.step.pick .tag { background: var(--gold); color: #2a1f05; }
+.step b { display: block; }
+.step small { color: var(--muted); font-size: 13px; display: block; }
+.price { font-family: var(--num); color: var(--gold); font-weight: 700; }
 
 /* Tay bài */
-.sec-h { display: flex; align-items: baseline; gap: 8px; }
-.sec-h h2 { font-family: var(--font-display); font-weight: 500; font-size: 15px; margin: 0; letter-spacing: .03em; }
-.sec-h small { color: var(--muted); margin-left: auto; }
-.hand { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; min-height: 64px; padding-top: 8px; }
+.sec { display: flex; align-items: baseline; gap: 8px; }
+.sec h2 { font-size: 16px; font-weight: 700; margin: 0; }
+.sec small { color: var(--muted); margin-left: auto; font-size: 13px; }
+.hand { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; padding-top: 8px; }
 .hand .empty { grid-column: 1 / -1; }
-.card { width: 100%; aspect-ratio: 5 / 7; border-radius: 6px; background: var(--paper); color: var(--paper-ink); border: 2px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-family: var(--font-display); font-size: 18px; line-height: 1; padding: 0; transition: transform .15s; }
-.card .s { font-size: 20px; }
+.card { width: 100%; aspect-ratio: 5 / 7; border-radius: 6px; background: var(--paper); color: var(--paper-ink); border: 2px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-weight: 800; font-size: 17px; line-height: 1.05; padding: 0; transition: transform .15s; }
+.card .s { font-size: 18px; }
 .card.red { color: #c8242d; }
 .card.sel { border-color: var(--gold); transform: translateY(-4px); }
 .card.play { box-shadow: 0 0 0 3px var(--go); transform: translateY(-8px); }
 .card.disc { box-shadow: 0 0 0 3px var(--mult); opacity: .75; }
-.card .tag { position: absolute; bottom: 2px; left: 2px; right: 2px; font-family: var(--font-body); font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; border-radius: 2px; padding: 1px 0; background: #00000014; }
+.card .tg { position: absolute; bottom: 2px; left: 1px; right: 1px; font-size: 8px; font-weight: 700; text-transform: uppercase; background: #00000014; border-radius: 2px; }
 .card .seal { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; }
 .card.ed-foil { background: linear-gradient(135deg, #e4ecf6, #c9d8ea); } .card.ed-holo { background: linear-gradient(135deg, #fbe1e6, #e7f4ff); } .card.ed-poly { background: linear-gradient(135deg, #ffe5c2, #e2ffd9, #e3dcff); }
-.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 14px; text-align: center; width: 100%; }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 14px; text-align: center; width: 100%; font-size: 15px; }
 
-/* Bàn phím lá */
-.pad { display: grid; gap: 6px; }
+/* Bàn phím */
+details.pad { background: var(--panel); border-radius: 12px; padding: 10px; }
+details.pad summary { font-weight: 600; cursor: pointer; }
+.padin { display: grid; gap: 6px; margin-top: 10px; }
 .ranks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .suits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.k { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); font-family: var(--font-display); font-size: 17px; }
-.k.on { background: var(--gold); color: #2a2006; border-color: var(--gold); }
-.k.suit-H, .k.suit-D { color: #ff7d82; }
-.k.wide { font-family: var(--font-body); font-size: 13px; }
+.k { min-height: 42px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); font-weight: 700; font-size: 17px; }
+.k.on { background: var(--gold); color: #2a1f05; border-color: var(--gold); }
+.k.suit-H, .k.suit-D { color: #ff8a8f; }
+.k.wide { font-size: 13px; font-weight: 600; }
 .mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.mods label { display: grid; gap: 2px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+label.f { display: grid; gap: 3px; font-size: 13px; color: var(--muted); }
+.sel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-height: 40px; width: 100%; }
 
-/* Gợi ý */
-.advice { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
-.advice.play { border-color: var(--go); }
-.advice.discard { border-color: var(--mult); }
-.verdict { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.verdict .act { font-family: var(--font-display); font-size: 24px; }
-.advice.play .act { color: var(--go); } .advice.discard .act { color: var(--mult); }
-.score { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
-.score .c { background: var(--chips); color: #fff; padding: 1px 6px; border-radius: 4px; }
-.score .m { background: var(--mult); color: #fff; padding: 1px 6px; border-radius: 4px; }
-.reason { color: var(--muted); margin: 0; }
-.alts { display: grid; gap: 4px; font-size: 13px; }
-.alts div { display: flex; gap: 8px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 4px; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); font-weight: 600; }
-.btn.primary { background: var(--gold); border-color: var(--gold); color: #2a2006; }
-.btn.go { background: var(--go); border-color: var(--go); color: #062a1a; }
-.btn.danger { border-color: var(--mult); color: #ff9da1; }
-.btn.grow { flex: 1; }
-.ask { display: flex; gap: 8px; }
-
-/* Joker */
-.jlist { display: grid; gap: 6px; }
-.joker { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
-.joker .idx { font-family: var(--font-num); color: var(--muted); width: 2ch; text-align: right; }
-.joker .nm { min-width: 0; }
-.joker .nm b { display: block; font-weight: 600; }
-.joker .nm small { color: var(--muted); }
-.joker .ctl { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.joker input, .shopitem input { width: 64px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 32px; }
-.ib { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); }
-.search { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 44px; }
-.results { display: grid; gap: 2px; max-height: 260px; overflow-y: auto; }
-.results button { text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 8px 4px; }
-.results button small { color: var(--muted); display: block; }
-
-/* Shop */
-.shopitem { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; background: var(--panel); border-radius: 8px; padding: 8px; }
-.gain { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
-.gain.up { color: var(--go); } .gain.low { color: var(--muted); }
-.note { color: var(--muted); font-size: 12px; }
+/* Joker / mục */
+.list { display: grid; gap: 6px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.item .nm { min-width: 0; }
+.item .nm b { display: block; font-weight: 700; }
+.item .nm small { color: var(--muted); font-size: 13px; }
+.item .ctl { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.item input { width: 64px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px; min-height: 36px; }
+.ib { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); }
+.kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.search { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 46px; }
+.results { display: grid; gap: 2px; max-height: 280px; overflow-y: auto; }
+.results button { text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 9px 4px; }
+.results button small { color: var(--muted); display: block; font-size: 13px; }
+.note { color: var(--muted); font-size: 13px; margin: 0; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--felt); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: transparent; border-radius: 8px; min-height: 36px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--panel-2); color: var(--ink); }
 
 /* Cài đặt */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .levels { display: grid; gap: 4px; }
-.levels div { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; }
-.levels b { font-family: var(--font-num); min-width: 3ch; text-align: center; }
+.levels div { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; font-size: 15px; }
+.levels b { font-family: var(--num); min-width: 3ch; text-align: center; }
 .deckgrid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; }
-.deckgrid button { aspect-ratio: 3/4; max-width: 100%; border-radius: 3px; border: 0; background: var(--paper); color: var(--paper-ink); font-family: var(--font-display); font-size: 11px; padding: 0; }
+.deckgrid button { aspect-ratio: 3/4; max-width: 100%; border-radius: 3px; border: 0; background: var(--paper); color: var(--paper-ink); font-weight: 700; font-size: 10px; padding: 0; }
 .deckgrid button.red { color: #c8242d; }
 .deckgrid button.gone { opacity: .18; }
 .deckgrid button.inhand { outline: 2px solid var(--gold); }
 
-/* Tab dưới */
+/* Tab */
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
-.tabs button { background: transparent; border: 0; min-height: 52px; color: var(--muted); font-family: var(--font-display); font-size: 14px; border-top: 2px solid transparent; }
+.tabs button { background: transparent; border: 0; min-height: 50px; color: var(--muted); font-weight: 600; font-size: 15px; border-top: 3px solid transparent; }
 .tabs button.on { color: var(--ink); border-top-color: var(--gold); }
 
-/* Sheet dán nhãn lá quét */
-.sheet { position: fixed; inset: auto 0 0 0; background: var(--panel); border-top: 1px solid var(--line); padding: 14px max(16px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 10px; z-index: 20; max-width: 560px; margin: 0 auto; }
-.sheet img { height: 90px; image-rendering: pixelated; border-radius: 6px; background: #000; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--felt); padding: 8px 14px; border-radius: 8px; font-weight: 600; z-index: 30; }
+/* Màn ngang của điện thoại: bảng thấp (~390px) → gộp trạng thái 1 dòng, thu nhỏ khung */
+@media (max-height: 520px) {
+  body { font-size: 15px; }
+  .status { padding-block: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .row1 { flex: 1 1 100%; }
+  .row2 { flex: 1 1 100%; gap: 4px; }
+  .ctr b { font-size: 15px; } .ctr span { font-size: 12px; padding-left: 4px; }
+  .ctr button { width: 26px; height: 26px; font-size: 16px; }
+  .blindbtn { padding: 4px 8px; font-size: 14px; }
+  .scroll { padding-block: 8px 12px; gap: 10px; }
+  .btn { min-height: 42px; font-size: 15px; }
+  .verdict { font-size: 19px; }
+  .tabs button { min-height: 40px; font-size: 14px; }
+  .result { padding: 10px; gap: 6px; }
+}
+
+/* Bảng trượt */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 88%; overflow-y: auto; background: var(--panel); border-top: 2px solid var(--gold); padding: 14px max(14px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-right, 0px)); display: grid; gap: 10px; z-index: 20; max-width: 600px; margin: 0 auto; box-shadow: 0 -8px 24px #0008; }
+.sheet img { height: 110px; image-rendering: pixelated; border-radius: 8px; background: #000; justify-self: start; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--felt); padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 30; max-width: 90%; text-align: center; }
 </style>
 
-<div class="app" id="app">
-  <header class="blind">
-    <div class="blind-top">
-      <div class="brand">Balatro <b>Advisor</b></div>
-      <select class="sel" id="ante" aria-label="Ante"></select>
-      <select class="sel" id="blindSel" aria-label="Blind">
-        <option value="0">Small</option><option value="1">Big</option><option value="2">Boss</option>
-      </select>
-      <input class="sel" id="target" type="number" inputmode="numeric" aria-label="Điểm cần" style="width:96px">
+<div class="app">
+  <header class="status">
+    <div class="row1">
+      <button class="blindbtn" id="blindBtn" aria-label="Sửa ante và blind">Ante 1 · Small</button>
+      <div class="prog"><div class="bar"><i id="barFill"></i></div><div class="nums"><span id="scoreNow">0</span> / <span id="targetNum">300</span> · thiếu <span class="need" id="needNum">300</span></div></div>
     </div>
-    <div class="meter">
-      <div class="bar"><i id="barFill"></i></div>
-      <div class="meter-num"><span id="scoreNow">0</span> / <span id="targetNum">300</span> · thiếu <span class="need" id="needNum">300</span></div>
-    </div>
-    <div class="counters">
+    <div class="row2">
       <div class="ctr h"><span>Đánh</span><button data-ctr="hands" data-d="-1" aria-label="Giảm lượt đánh">−</button><b id="handsN">4</b><button data-ctr="hands" data-d="1" aria-label="Tăng lượt đánh">+</button></div>
       <div class="ctr d"><span>Bỏ</span><button data-ctr="discards" data-d="-1" aria-label="Giảm lượt bỏ">−</button><b id="discardsN">3</b><button data-ctr="discards" data-d="1" aria-label="Tăng lượt bỏ">+</button></div>
       <div class="ctr m"><span>$</span><button data-ctr="money" data-d="-1" aria-label="Giảm tiền">−</button><b id="moneyN">4</b><button data-ctr="money" data-d="1" aria-label="Tăng tiền">+</button></div>
     </div>
   </header>
-
   <main class="scroll" id="view"></main>
-
   <nav class="tabs" id="tabs">
     <button data-tab="round" class="on">Vòng</button>
-    <button data-tab="jokers">Joker</button>
     <button data-tab="shop">Shop</button>
+    <button data-tab="jokers">Joker</button>
     <button data-tab="setup">Cài đặt</button>
   </nav>
 </div>
@@ -907,7 +926,407 @@ function adviseSkip(state, blindIdx, tag) {
 
 const fmt = (n) => (n == null ? '—' : n >= 1e9 ? n.toExponential(2) : Math.round(n).toLocaleString('vi-VN'));
 
-return { SUITS, SUIT_SYM, RANKS, RANK_LABEL, HAND_TYPES, HAND_INFO, ANTE_BASE, STAKES, blindTarget, makeCard, standardDeck, DECKS, DECK_BY_ID, deckCards, cardLabel, JOKERS, JOKER_BY_ID, ruleFlags, detectHand, scorePlay, bestPlay, advise, bestJokerOrder, power, adviseShop, GOOD_TAGS, adviseSkip, fmt };
+// Danh mục đầy đủ + đọc màn hình (OCR) + khuyên shop/pack.
+
+// ---------- Tên đầy đủ 150 joker (bản 1.0.1). Joker chưa mô phỏng điểm → 'passive'. ----------
+const ALL_JOKER_NAMES = [
+  'Joker', 'Greedy Joker', 'Lusty Joker', 'Wrathful Joker', 'Gluttonous Joker', 'Jolly Joker', 'Zany Joker', 'Mad Joker', 'Crazy Joker', 'Droll Joker',
+  'Sly Joker', 'Wily Joker', 'Clever Joker', 'Devious Joker', 'Crafty Joker', 'Half Joker', 'Credit Card', 'Banner', 'Mystic Summit', '8 Ball',
+  'Misprint', 'Raised Fist', 'Chaos the Clown', 'Scary Face', 'Abstract Joker', 'Delayed Gratification', 'Gros Michel', 'Even Steven', 'Odd Todd', 'Scholar',
+  'Business Card', 'Supernova', 'Ride the Bus', 'Egg', 'Runner', 'Ice Cream', 'Splash', 'Blue Joker', 'Faceless Joker', 'Green Joker',
+  'Superposition', 'To Do List', 'Cavendish', 'Red Card', 'Square Joker', 'Riff-raff', 'Photograph', 'Reserved Parking', 'Mail-In Rebate', 'Hallucination',
+  'Fortune Teller', 'Juggler', 'Drunkard', 'Golden Joker', 'Popcorn', 'Walkie Talkie', 'Smiley Face', 'Golden Ticket', 'Swashbuckler', 'Hanging Chad',
+  'Shoot the Moon', 'Joker Stencil', 'Four Fingers', 'Mime', 'Ceremonial Dagger', 'Marble Joker', 'Loyalty Card', 'Dusk', 'Fibonacci', 'Steel Joker',
+  'Hack', 'Pareidolia', 'Space Joker', 'Burglar', 'Blackboard', 'Sixth Sense', 'Constellation', 'Hiker', 'Card Sharp', 'Madness',
+  'Seance', 'Vampire', 'Shortcut', 'Hologram', 'Cloud 9', 'Rocket', 'Midas Mask', 'Luchador', 'Gift Card', 'Turtle Bean',
+  'Erosion', 'To the Moon', 'Stone Joker', 'Lucky Cat', 'Bull', 'Diet Cola', 'Trading Card', 'Flash Card', 'Spare Trousers', 'Ramen',
+  'Seltzer', 'Castle', 'Mr. Bones', 'Acrobat', 'Sock and Buskin', 'Troubadour', 'Certificate', 'Smeared Joker', 'Throwback', 'Rough Gem',
+  'Bloodstone', 'Arrowhead', 'Onyx Agate', 'Glass Joker', 'Showman', 'Flower Pot', 'Merry Andy', 'Oops! All 6s', 'The Idol', 'Seeing Double',
+  'Matador', 'Satellite', 'Cartomancer', 'Astronomer', 'Bootstraps', 'DNA', 'Vagabond', 'Baron', 'Obelisk', 'Baseball Card',
+  'Ancient Joker', 'Campfire', 'Blueprint', 'Wee Joker', 'Hit the Road', 'The Duo', 'The Trio', 'The Family', 'The Order', 'The Tribe',
+  'Stuntman', 'Invisible Joker', 'Brainstorm', "Driver's License", 'Burnt Joker', 'Canio', 'Triboulet', 'Yorick', 'Chicot', 'Perkeo',
+];
+// Joker kinh tế / tiện ích: mô tả ngắn để người chơi biết vì sao app vẫn khuyên mua
+const PASSIVE_NOTES = {
+  'Credit Card': 'Nợ tới −$20', '8 Ball': 'Lá 8 được tính: 1/4 tạo Tarot', 'Chaos the Clown': '1 lần reroll miễn phí mỗi shop',
+  'Delayed Gratification': '$2 mỗi lượt bỏ còn lại nếu không bỏ', 'Business Card': 'Lá mặt được tính: 1/2 +$2', Egg: '+$3 giá bán mỗi vòng',
+  'Faceless Joker': 'Bỏ ≥3 lá mặt: +$5', Superposition: 'Straight có A: tạo Tarot', 'To Do List': 'Đánh đúng tay chỉ định: +$4',
+  'Riff-raff': 'Đầu blind: tạo 2 joker Common', 'Reserved Parking': 'Lá mặt trên tay: 1/2 +$1', 'Mail-In Rebate': 'Bỏ đúng số chỉ định: +$5',
+  Hallucination: 'Mở pack: 1/2 tạo Tarot', Juggler: '+1 lá trên tay', Drunkard: '+1 lượt bỏ', 'Golden Joker': '+$4 cuối vòng',
+  'Golden Ticket': 'Lá Gold được tính: +$4', 'Marble Joker': 'Đầu blind: thêm 1 lá Stone', 'Space Joker': '1/4 tăng level tay vừa đánh',
+  Burglar: '+3 lượt đánh, mất hết lượt bỏ', 'Sixth Sense': 'Đánh 1 lá 6 đầu tiên: hủy, tạo Spectral', Hiker: 'Lá được tính +5 chip vĩnh viễn',
+  Seance: 'Straight Flush: tạo Spectral', 'Cloud 9': '+$1 mỗi lá 9 trong bộ', Rocket: '+$1 cuối vòng, tăng dần', 'Midas Mask': 'Lá mặt được tính → Gold',
+  Luchador: 'Bán: vô hiệu Boss', 'Gift Card': '+$1 giá bán mọi joker/lá mỗi vòng', 'Turtle Bean': '+5 lá trên tay, giảm 1 mỗi vòng',
+  'To the Moon': '+$1 lãi mỗi $5', 'Diet Cola': 'Bán: tạo Double Tag', 'Trading Card': 'Bỏ đúng 1 lá đầu tiên: hủy, +$3',
+  'Mr. Bones': 'Cứu mạng nếu đạt ≥25% điểm', Troubadour: '+2 lá trên tay, −1 lượt đánh', Certificate: 'Đầu vòng: thêm 1 lá có seal',
+  Showman: 'Món có thể xuất hiện trùng', 'Merry Andy': '+3 lượt bỏ, −1 lá trên tay', 'Oops! All 6s': 'Nhân đôi mọi xác suất',
+  Matador: 'Kích hoạt hiệu ứng Boss: +$8', Satellite: '+$1 mỗi loại planet đã dùng', Cartomancer: 'Đầu blind: tạo Tarot',
+  Astronomer: 'Planet và gói Celestial miễn phí', DNA: 'Tay 1 lá đầu tiên: nhân bản lá đó', Vagabond: 'Đánh khi ≤$4: tạo Tarot',
+  'Baseball Card': 'Joker Uncommon ×1,5 Mult', 'Invisible Joker': 'Sau 2 vòng: bán để nhân bản 1 joker', 'Burnt Joker': 'Lượt bỏ đầu: tăng level tay đó',
+  Chicot: 'Vô hiệu mọi Boss', Perkeo: 'Rời shop: tạo bản Negative của 1 lá tiêu hao',
+};
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+const NAME_TO_ID = Object.fromEntries(JOKERS.map((j) => [j.name.toLowerCase(), j.id]));
+NAME_TO_ID['joker stencil'] = 'stencil'; NAME_TO_ID['smeared joker'] = 'smeared'; NAME_TO_ID['the idol'] = 'idol';
+// thêm joker còn thiếu vào danh sách chung dưới dạng 'passive' có tên thật
+for (const n of ALL_JOKER_NAMES) {
+  if (!NAME_TO_ID[n.toLowerCase()]) {
+    const id = 'p_' + slug(n);
+    const def = { id, name: n, vi: PASSIVE_NOTES[n] || 'Hiệu ứng không cộng điểm trực tiếp', r: 1, passive: true };
+    JOKERS.push(def); JOKER_BY_ID[id] = def; NAME_TO_ID[n.toLowerCase()] = id;
+  }
+}
+function jokerIdByName(name) { return NAME_TO_ID[name.toLowerCase()] || null; }
+
+// ---------- Tarot / Planet / Spectral / Voucher / Pack ----------
+// tarot: v = giá trị gốc (0–5); act = hành động trên lá (để chỉ lá cần chọn)
+const TAROTS = [
+  { name: 'The Fool', vi: 'Tạo lại Tarot/Planet vừa dùng', v: 2 },
+  { name: 'The Magician', vi: '≤2 lá thành Lucky', v: 2.5, act: { kind: 'enh', enh: 'lucky', n: 2 } },
+  { name: 'The High Priestess', vi: 'Tạo 2 Planet', v: 3 },
+  { name: 'The Empress', vi: '≤2 lá thành Mult (+4 Mult)', v: 3, act: { kind: 'enh', enh: 'mult', n: 2 } },
+  { name: 'The Emperor', vi: 'Tạo 2 Tarot', v: 2.5 },
+  { name: 'The Hierophant', vi: '≤2 lá thành Bonus (+30 chip)', v: 2.5, act: { kind: 'enh', enh: 'bonus', n: 2 } },
+  { name: 'The Lovers', vi: '1 lá thành Wild', v: 2.5, act: { kind: 'enh', enh: 'wild', n: 1 } },
+  { name: 'The Chariot', vi: '1 lá thành Steel (×1,5 khi trên tay)', v: 3.5, act: { kind: 'enh', enh: 'steel', n: 1 } },
+  { name: 'Justice', vi: '1 lá thành Glass (×2, có thể vỡ)', v: 3.5, act: { kind: 'enh', enh: 'glass', n: 1 } },
+  { name: 'The Hermit', vi: 'Gấp đôi tiền (tối đa +$20)', v: 0, money: 'hermit' },
+  { name: 'The Wheel of Fortune', vi: '1/4: thêm edition cho joker', v: 1.5 },
+  { name: 'Strength', vi: '≤2 lá +1 bậc', v: 2.5, act: { kind: 'strength', n: 2 } },
+  { name: 'The Hanged Man', vi: 'Hủy ≤2 lá (làm mỏng bộ)', v: 3, act: { kind: 'destroy', n: 2 } },
+  { name: 'Death', vi: 'Chọn 2 lá: lá trái thành lá phải', v: 3, act: { kind: 'death', n: 2 } },
+  { name: 'Temperance', vi: 'Nhận tổng giá bán joker (tối đa $50)', v: 0, money: 'temperance' },
+  { name: 'The Devil', vi: '1 lá thành Gold', v: 2, act: { kind: 'enh', enh: 'gold', n: 1 } },
+  { name: 'The Tower', vi: '1 lá thành Stone', v: 0.5, act: { kind: 'enh', enh: 'stone', n: 1 } },
+  { name: 'The Star', vi: '≤3 lá thành ♦', v: 2.5, act: { kind: 'suit', suit: 'D', n: 3 } },
+  { name: 'The Moon', vi: '≤3 lá thành ♣', v: 2.5, act: { kind: 'suit', suit: 'C', n: 3 } },
+  { name: 'The Sun', vi: '≤3 lá thành ♥', v: 2.5, act: { kind: 'suit', suit: 'H', n: 3 } },
+  { name: 'Judgement', vi: 'Tạo 1 joker ngẫu nhiên', v: 2.5, needSlot: true },
+  { name: 'The World', vi: '≤3 lá thành ♠', v: 2.5, act: { kind: 'suit', suit: 'S', n: 3 } },
+];
+const PLANETS = HAND_TYPES.map(([hand, , , , , planet]) => ({ name: planet, hand }));
+const SPECTRALS = [
+  { name: 'Familiar', vi: 'Hủy 1 lá, thêm 3 lá mặt có Enhancement', v: 2 },
+  { name: 'Grim', vi: 'Hủy 1 lá, thêm 2 lá A có Enhancement', v: 2 },
+  { name: 'Incantation', vi: 'Hủy 1 lá, thêm 4 lá số có Enhancement', v: 1.5 },
+  { name: 'Talisman', vi: 'Gắn Gold Seal cho 1 lá', v: 2.5 },
+  { name: 'Aura', vi: 'Thêm Foil/Holo/Poly cho 1 lá', v: 3 },
+  { name: 'Wraith', vi: 'Tạo joker Rare, tiền về $0', v: 2.5, needSlot: true },
+  { name: 'Sigil', vi: 'Mọi lá trên tay thành cùng 1 chất ngẫu nhiên', v: 2 },
+  { name: 'Ouija', vi: 'Mọi lá trên tay thành cùng 1 số, −1 lá trên tay', v: 1 },
+  { name: 'Ectoplasm', vi: 'Negative cho 1 joker ngẫu nhiên, −1 lá trên tay', v: 3 },
+  { name: 'Immolate', vi: 'Hủy 5 lá ngẫu nhiên trên tay, +$20', v: 2.5 },
+  { name: 'Ankh', vi: 'Nhân bản 1 joker, hủy các joker khác', v: 1.5 },
+  { name: 'Deja Vu', vi: 'Gắn Red Seal cho 1 lá', v: 3 },
+  { name: 'Hex', vi: 'Polychrome 1 joker, hủy các joker khác', v: 1 },
+  { name: 'Trance', vi: 'Gắn Blue Seal cho 1 lá', v: 2 },
+  { name: 'Medium', vi: 'Gắn Purple Seal cho 1 lá', v: 1.5 },
+  { name: 'Cryptid', vi: 'Tạo 2 bản sao 1 lá', v: 3 },
+  { name: 'The Soul', vi: 'Tạo joker Legendary', v: 5, needSlot: true },
+  { name: 'Black Hole', vi: '+1 level mọi loại tay', v: 5 },
+];
+// voucher: v = giá trị gốc 0–5
+const VOUCHERS = [
+  ['Overstock', 4, '+1 ô bán lẻ trong shop'], ['Overstock Plus', 4, '+1 ô bán lẻ nữa'],
+  ['Clearance Sale', 3, 'Giảm 25% giá shop'], ['Liquidation', 3, 'Giảm 50% giá shop'],
+  ['Hone', 2, 'Edition xuất hiện ×2'], ['Glow Up', 2.5, 'Edition xuất hiện ×4'],
+  ['Reroll Surplus', 3, 'Reroll rẻ hơn $2'], ['Reroll Glut', 3, 'Reroll rẻ hơn thêm $2'],
+  ['Crystal Ball', 2, '+1 ô tiêu hao'], ['Omen Globe', 1.5, 'Gói Arcana có thể ra Spectral'],
+  ['Telescope', 3, 'Gói Celestial luôn có planet tay hay đánh nhất'], ['Observatory', 4.5, 'Planet đang giữ: ×1,5 Mult cho tay đó'],
+  ['Grabber', 5, '+1 lượt đánh mỗi vòng'], ['Nacho Tong', 5, '+1 lượt đánh nữa'],
+  ['Wasteful', 3, '+1 lượt bỏ mỗi vòng'], ['Recyclomancy', 3, '+1 lượt bỏ nữa'],
+  ['Tarot Merchant', 1, 'Tarot xuất hiện nhiều hơn'], ['Tarot Tycoon', 1, 'Tarot xuất hiện nhiều hơn nữa'],
+  ['Planet Merchant', 1.5, 'Planet xuất hiện nhiều hơn'], ['Planet Tycoon', 1.5, 'Planet xuất hiện nhiều hơn nữa'],
+  ['Seed Money', 3, 'Trần lãi $10 (giữ $50)'], ['Money Tree', 3, 'Trần lãi $20 (giữ $100)'],
+  ['Blank', 1, 'Không có tác dụng (mở Antimatter)'], ['Antimatter', 5, '+1 ô joker'],
+  ['Magic Trick', 1, 'Shop bán lá bài thường'], ['Illusion', 1, 'Lá bài trong shop có Enhancement/Edition/Seal'],
+  ['Hieroglyph', 3, '−1 ante, −1 lượt đánh'], ['Petroglyph', 2, '−1 ante, −1 lượt bỏ'],
+  ["Director's Cut", 2, 'Reroll Boss 1 lần mỗi ante ($10)'], ['Retcon', 2, 'Reroll Boss không giới hạn ($10)'],
+  ['Paint Brush', 4, '+1 lá trên tay'], ['Palette', 4, '+1 lá trên tay nữa'],
+].map(([name, v, vi]) => ({ name, v, vi }));
+const PACKS = [
+  { name: 'Buffoon Pack', type: 'buffoon', vi: 'Joker' }, { name: 'Arcana Pack', type: 'arcana', vi: 'Tarot' },
+  { name: 'Celestial Pack', type: 'celestial', vi: 'Planet' }, { name: 'Standard Pack', type: 'standard', vi: 'Lá bài thường' },
+  { name: 'Spectral Pack', type: 'spectral', vi: 'Spectral' },
+];
+const BOSSES = {
+  'The Flint': { flint: true }, 'The Psychic': { psychic: true }, 'The Plant': { debuffFace: true }, 'The Wall': { wall: true },
+  'The Club': { debuffSuit: 'C' }, 'The Goad': { debuffSuit: 'S' }, 'The Window': { debuffSuit: 'D' }, 'The Head': { debuffSuit: 'H' },
+  'Violet Vessel': { wall: 6 },
+};
+const BOSS_NAMES = ['The Hook', 'The Ox', 'The House', 'The Wall', 'The Wheel', 'The Arm', 'The Club', 'The Fish', 'The Psychic', 'The Goad',
+  'The Water', 'The Window', 'The Manacle', 'The Eye', 'The Mouth', 'The Plant', 'The Serpent', 'The Pillar', 'The Needle', 'The Head',
+  'The Tooth', 'The Flint', 'The Mark', 'Amber Acorn', 'Verdant Leaf', 'Violet Vessel', 'Crimson Heart', 'Cerulean Bell'];
+const ENH_NAMES = { 'Bonus Card': 'bonus', 'Mult Card': 'mult', 'Wild Card': 'wild', 'Glass Card': 'glass', 'Steel Card': 'steel', 'Stone Card': 'stone', 'Gold Card': 'gold', 'Lucky Card': 'lucky' };
+const SEAL_NAMES = { 'Gold Seal': 'gold', 'Red Seal': 'red', 'Blue Seal': 'blue', 'Purple Seal': 'purple' };
+const ED_NAMES = { Foil: 'foil', Holographic: 'holo', Polychrome: 'poly', Negative: 'neg' };
+
+// Danh mục chung để tìm kiếm và khớp tên OCR
+const CATALOG = [
+  ...JOKERS.filter((j) => j.id !== 'custom' && j.id !== 'passive').map((j) => ({ kind: 'joker', name: j.name, id: j.id, vi: j.vi })),
+  ...TAROTS.map((t) => ({ kind: 'tarot', name: t.name, vi: t.vi })),
+  ...PLANETS.map((p) => ({ kind: 'planet', name: p.name, vi: `+1 level ${p.hand}`, hand: p.hand })),
+  ...SPECTRALS.map((s) => ({ kind: 'spectral', name: s.name, vi: s.vi })),
+  ...VOUCHERS.map((v) => ({ kind: 'voucher', name: v.name, vi: v.vi })),
+  ...PACKS.flatMap((p) => ['', 'Jumbo ', 'Mega '].map((sz) => ({ kind: 'pack', name: sz + p.name, type: p.type, size: sz.trim().toLowerCase() || 'normal', vi: p.vi }))),
+];
+const KIND_VI = { joker: 'Joker', tarot: 'Tarot', planet: 'Planet', spectral: 'Spectral', voucher: 'Voucher', pack: 'Pack', card: 'Lá bài' };
+
+// ---------- Khớp tên mờ (OCR đọc sai vài chữ) ----------
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+function lev(a, b) {
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function fuzzyFind(text, list, key = 'name') {
+  const t = norm(text); if (t.length < 3) return null;
+  let best = null, bestD = Infinity;
+  for (const it of list) {
+    const k = norm(it[key]); if (!k) continue;
+    const d = lev(t, k);
+    const tol = k.length <= 5 ? 0 : k.length <= 9 ? 1 : 2;
+    if (d <= tol && d < bestD) { best = it; bestD = d; }
+  }
+  return best;
+}
+
+// ---------- Đọc màn hình từ OCR ----------
+// lines: [{t, box:[x,y,w,h]}], W,H kích thước ảnh. Trả về loại màn hình + dữ liệu đọc được.
+function parseScreen(lines, W, H) {
+  const has = (re) => lines.some((l) => re.test(l.t));
+  const find = (re) => lines.find((l) => re.test(l.t));
+  const out = { screen: 'unknown', tooltip: null, prices: [], packName: null };
+  const isRound = has(/play\s*hand|sort\s*hand/i);
+  const isShop = has(/reroll|next\s*round/i);
+  // màn mở pack: có "Choose N" hoặc "Skip" + tên pack trên cùng một dòng (shop chỉ có chữ PACK rời trên hình bao)
+  const packLine = lines.find((l) => /(buffoon|arcana|celestial|standard|spectral)\s*pack/i.test(l.t));
+  const isPack = has(/choose\s*\d/i) || (has(/^\s*skip\s*$/i) && !!packLine);
+  const isBlindSelect = lines.filter((l) => /^select$/i.test(l.t.trim())).length >= 1 && !isRound;
+  out.screen = isRound ? 'round' : isPack ? 'pack' : isShop ? 'shop' : isBlindSelect ? 'blind' : 'unknown';
+  if (isPack) {
+    const nm = packLine ? packLine.t.replace(/pack/i, ' Pack').replace(/\s+/g, ' ').trim() : '';
+    const p = PACKS.find((p) => norm(nm).includes(p.type)) || null;
+    out.packName = p ? p.name : null; out.packType = p ? p.type : null;
+    const ch = find(/choose\s*(\d)/i); out.choose = ch ? +ch.t.match(/(\d)/)[1] : 1;
+  }
+  // Điểm cần + tên blind
+  const sal = find(/score\s*at\s*least/i);
+  if (sal) {
+    const num = lines.filter((l) => /^[\d,.]+$/.test(l.t.replace(/\s/g, '')) && l.box[1] > sal.box[1] && l.box[1] < sal.box[1] + sal.box[3] * 4 && Math.abs((l.box[0] + l.box[2] / 2) - (sal.box[0] + sal.box[2] / 2)) < sal.box[2])
+      .sort((a, b) => a.box[1] - b.box[1])[0];
+    if (num) out.target = parseInt(num.t.replace(/[^\d]/g, ''), 10);
+  }
+  if (has(/small\s*blind/i)) out.blind = 0; else if (has(/big\s*blind/i)) out.blind = 1;
+  else { const b = lines.map((l) => fuzzyFind(l.t, BOSS_NAMES.map((n) => ({ name: n })))).find(Boolean); if (b) { out.blind = 2; out.boss = b.name; } }
+  const ante = lines.find((l) => /^\s*(\d{1,2})\s*\/\s*8\s*$/.test(l.t) && l.box[0] < W * 0.3);
+  if (ante) out.ante = +ante.t.match(/(\d{1,2})/)[1];
+  // Tiền: "$N" ở cột trái
+  const money = lines.find((l) => /^\$\s*\d+$/.test(l.t.trim()) && l.box[0] + l.box[2] < W * 0.3);
+  if (money) out.money = +money.t.replace(/[^\d]/g, '');
+  // Giá: "$N" ngoài cột trái
+  out.prices = lines.filter((l) => /^\$\s*\d+$/.test(l.t.trim()) && l.box[0] > W * 0.3).map((l) => ({ v: +l.t.replace(/[^\d]/g, ''), box: l.box }));
+  const reroll = find(/reroll\s*\$?\s*(\d+)/i); if (reroll) out.reroll = +reroll.t.match(/(\d+)/)[1];
+  // Bảng mô tả (tooltip): một dòng khớp tên món
+  for (const l of lines) {
+    // chữ trên hình (JOKER, BUFFOON, VOUCHER…) viết hoa toàn bộ; tên trong bảng mô tả thì không
+    if (/[A-Z]{4,}/.test(l.t) && l.t === l.t.toUpperCase()) continue;
+    const it = fuzzyFind(l.t, CATALOG);
+    if (it && it.kind !== 'pack') {
+      out.tooltip = { ...it, box: l.box };
+      break;
+    }
+    const pc = l.t.match(/^(ace|king|queen|jack|10|[2-9])\s*of\s*(spades|hearts|clubs|diamonds)$/i);
+    if (pc) {
+      const rk = { ace: 14, king: 13, queen: 12, jack: 11 }[pc[1].toLowerCase()] || +pc[1];
+      out.tooltip = { kind: 'card', name: l.t, rank: rk, suit: pc[2][0].toUpperCase(), box: l.box };
+      break;
+    }
+  }
+  if (out.tooltip) {
+    for (const l of lines) {
+      const t = l.t.trim();
+      for (const [k, v] of Object.entries(ED_NAMES)) if (norm(t) === norm(k)) out.tooltip.ed = v;
+      for (const [k, v] of Object.entries(ENH_NAMES)) if (norm(t) === norm(k)) out.tooltip.enh = v;
+      for (const [k, v] of Object.entries(SEAL_NAMES)) if (norm(t) === norm(k)) out.tooltip.seal = v;
+    }
+    // giá gần bảng mô tả nhất (khoảng cách thật); quá xa thì không gán — dùng giá mặc định
+    const cx = (b) => b[0] + b[2] / 2, cy = (b) => b[1] + b[3] / 2;
+    const d = (b) => Math.hypot(cx(b) - cx(out.tooltip.box), cy(b) - cy(out.tooltip.box));
+    const p = out.prices.slice().sort((a, b) => d(a.box) - d(b.box))[0];
+    if (p && out.screen === 'shop' && d(p.box) < H * 0.3) out.tooltip.price = p.v;
+  }
+  return out;
+}
+
+// ---------- Tay chính + giá trị ----------
+function mainHand(state) {
+  const counts = state.handCounts || {};
+  let best = 'Pair', bv = -1;
+  for (const [n] of HAND_TYPES) {
+    const lvl = state.levels?.[n] || 1;
+    const v = (lvl - 1) * 3 + (counts[n] || 0);
+    if (v > bv) { bv = v; best = n; }
+  }
+  return bv > 0 ? best : null;
+}
+function interestOf(m, cap) { return Math.floor(Math.min(Math.max(0, m), cap) / 5); }
+
+function packValue(item, state) {
+  const p = PACKS.find((x) => x.type === item.type) || PACKS[0];
+  const bonus = item.size === 'mega' ? 1.5 : item.size === 'jumbo' ? 0.7 : 0;
+  const free = (state.jokerSlots || 5) - (state.jokers?.length || 0);
+  let v = 0, why = '';
+  if (p.type === 'buffoon') { v = free > 0 ? (state.ante <= 4 ? 3.5 : 2.5) : 1.5; why = free > 0 ? 'còn ô joker' : 'hết ô joker, phải bán để lấy'; }
+  else if (p.type === 'celestial') { v = mainHand(state) ? 3 : 2; why = mainHand(state) ? `tăng level ${mainHand(state)}` : 'chưa có tay chính'; }
+  else if (p.type === 'arcana') { v = 2.5; why = 'tarot chỉnh bộ bài'; }
+  else if (p.type === 'spectral') { v = 2.2; why = 'mạnh nhưng có cái giá'; }
+  else { v = 1.2; why = 'thường ít giá trị'; }
+  return { v: v + bonus, why };
+}
+
+
+// Điểm cho một joker đã mô phỏng: lấy mức tăng điểm; joker kinh tế/tích lũy có giá trị sàn
+function rateJoker(ref, gain, note) {
+  const def = JOKER_BY_ID[ref.id || jokerIdByName(ref.name)] || {};
+  let score = (gain || 0) * 10;
+  let why = `+${Math.round((gain || 0) * 100)}% điểm mỗi tay`;
+  if (def.passive && score < 2.5) { score = 2.5; why = def.vi + (gain > 0.05 ? ` · ${why}` : ''); }
+  if (['mult', 'chips', 'x'].includes(def.value) && !ref.v && score < 3) { score = 3; why = 'tăng dần theo thời gian'; }
+  if (ref.ed === 'neg') { score += 3; why += ' · Negative: không tốn ô'; }
+  if (note) why += ` · ${note}`;
+  return { score, why };
+}
+
+// Khuyên shop đầy đủ. items: [{kind, name, id?, price, ed?, hand?, type?, size?}]
+function adviseShopFull(state, items, opts = {}) {
+  const money = state.money || 0;
+  const cap = state.interestCap ?? 25;
+  const jk = items.filter((i) => i.kind === 'joker' || i.kind === 'planet');
+  const sim = jk.length ? adviseShop(state, jk.map((i) => i.kind === 'joker'
+    ? { kind: 'joker', joker: { id: i.id || jokerIdByName(i.name) || 'passive', ed: i.ed || null }, price: i.price, ref: i }
+    : { kind: 'planet', hand: i.hand || PLANETS.find((p) => p.name === i.name)?.hand, price: i.price, ref: i }), opts) : { base: power(state, opts), items: [] };
+  const base = sim.base;
+  const rated = [];
+  for (const r of sim.items) {
+    const it = r.ref;
+    const { score, why } = it.kind === 'joker' ? rateJoker(it, r.gain, null) : { score: (r.gain || 0) * 10, why: `+${Math.round((r.gain || 0) * 100)}% điểm mỗi tay` };
+    rated.push({ ...it, score, why, note: r.note });
+  }
+  for (const it of items) {
+    if (it.kind === 'voucher') {
+      const v = VOUCHERS.find((x) => x.name === it.name);
+      let s = v ? v.v : 1;
+      if ((it.name === 'Seed Money' || it.name === 'Money Tree') && money < 30) s -= 1.5;
+      if (it.name === 'Observatory' && !mainHand(state)) s -= 2;
+      rated.push({ ...it, score: s * 2, why: v ? v.vi : '' });
+    } else if (it.kind === 'pack') {
+      const pv = packValue(it, state); rated.push({ ...it, score: pv.v * 2, why: pv.why });
+    } else if (it.kind === 'tarot' || it.kind === 'spectral') {
+      const d = (it.kind === 'tarot' ? TAROTS : SPECTRALS).find((x) => x.name === it.name);
+      let s = d ? d.v : 1;
+      if (d?.money === 'hermit') s = Math.min(20, money - (it.price || 3)) / 4;
+      rated.push({ ...it, score: s * 1.6, why: d ? d.vi : '' });
+    }
+  }
+  rated.sort((a, b) => b.score - a.score);
+  // Lập kế hoạch mua: món đáng (score ≥ ngưỡng) theo thứ tự; giữ mốc lãi khi món không đủ đáng
+  const plan = []; let m = money;
+  const slotsFree = (state.jokerSlots || 5) - (state.jokers?.length || 0);
+  let jokersBought = 0;
+  for (const it of rated) {
+    if (!it.price && it.price !== 0) continue;
+    if (it.price > m) { plan.push({ ...it, act: 'skip', why2: 'không đủ tiền' }); continue; }
+    const lost = interestOf(m, cap) - interestOf(m - it.price, cap);
+    const threshold = 3 + lost * 1.5 + (state.ante >= 7 ? -2 : 0); // cuối ván tiền ít giá trị
+    if (it.kind === 'joker' && slotsFree - jokersBought <= 0 && it.ed !== 'neg' && !it.note) { plan.push({ ...it, act: 'skip', why2: 'hết ô joker' }); continue; }
+    if (it.score >= threshold) {
+      plan.push({ ...it, act: 'buy', why2: lost ? `mất $${lost} lãi/vòng nhưng đáng` : '' });
+      m -= it.price; if (it.kind === 'joker') jokersBought++;
+    } else plan.push({ ...it, act: 'skip', why2: lost ? `không đáng mất $${lost} lãi` : 'giá trị thấp' });
+  }
+  const rr = opts.reroll ?? state.reroll ?? 5;
+  const bestLeft = plan.filter((p) => p.act === 'skip').reduce((a, r) => Math.max(a, r.score), 0);
+  const canReroll = m - rr >= Math.min(cap, 25) && state.ante <= 6;
+  const weak = base < (state.nextBossReq || Infinity) / Math.max(1, state.hands || 4);
+  const reroll = canReroll && (weak || bestLeft < 4) && (slotsFree - jokersBought > 0);
+  return {
+    base, plan, moneyAfter: m, interest: interestOf(m, cap),
+    reroll: reroll ? { cost: rr, why: weak ? 'sức điểm chưa đủ cho Boss, còn dư tiền trên mốc lãi' : 'không có món tốt, dư tiền trên mốc lãi' } : null,
+  };
+}
+
+// ---------- Chọn lá trong pack ----------
+function cardScore(c) {
+  let s = 0;
+  if (c.enh) s += { steel: 3, glass: 3, mult: 2, bonus: 1.5, lucky: 2, gold: 2, wild: 1.5, stone: 0.5 }[c.enh] || 1;
+  if (c.seal) s += { red: 3, gold: 2, blue: 1.5, purple: 1 }[c.seal] || 1;
+  if (c.ed) s += { poly: 3, holo: 2, foil: 1 }[c.ed] || 1;
+  return s;
+}
+// Lá cần chọn cho tarot cải biến: trả về id lá trên tay
+function tarotTargets(tarot, hand, state) {
+  const act = tarot.act; if (!act || !hand?.length) return [];
+  const suitCount = {}; (state.fullDeck || []).forEach((c) => (suitCount[c.suit] = (suitCount[c.suit] || 0) + 1));
+  const sorted = (f) => hand.slice().sort(f).slice(0, act.n).map((c) => c.id);
+  if (act.kind === 'suit') return sorted((a, b) => (a.suit === act.suit) - (b.suit === act.suit) || (suitCount[a.suit] || 0) - (suitCount[b.suit] || 0)).filter((id) => hand.find((c) => c.id === id).suit !== act.suit);
+  if (act.kind === 'destroy') return sorted((a, b) => cardScore(a) - cardScore(b) || a.rank - b.rank);
+  if (act.kind === 'strength') return sorted((a, b) => (a.rank === 14) - (b.rank === 14) || b.rank - a.rank);
+  if (act.kind === 'death') { const best = hand.slice().sort((a, b) => cardScore(b) - cardScore(a) || b.rank - a.rank)[0]; const worst = hand.slice().sort((a, b) => cardScore(a) - cardScore(b) || a.rank - b.rank)[0]; return worst && best && worst !== best ? [worst.id, best.id] : []; }
+  if (act.kind === 'enh') {
+    if (act.enh === 'steel') return sorted((a, b) => (b.rank === 13) - (a.rank === 13) || (!a.enh) - (!b.enh) || b.rank - a.rank);
+    if (act.enh === 'gold') return sorted((a, b) => a.rank - b.rank);
+    return sorted((a, b) => (!b.enh) - (!a.enh) || b.rank - a.rank);
+  }
+  return [];
+}
+// options: [{kind, name, ...}] ; trả về danh sách xếp hạng + gợi ý
+function advisePack(state, packType, options, opts = {}) {
+  const hand = state.hand || [];
+  const rated = [];
+  const jokerOpts = options.filter((o) => o.kind === 'joker' || o.kind === 'planet');
+  if (jokerOpts.length) {
+    const r = adviseShop(state, jokerOpts.map((o) => o.kind === 'joker'
+      ? { kind: 'joker', joker: { id: o.id || jokerIdByName(o.name) || 'passive', ed: o.ed || null }, price: 0, ref: o }
+      : { kind: 'planet', hand: o.hand || PLANETS.find((p) => p.name === o.name)?.hand, price: 0, ref: o }), opts);
+    for (const x of r.items) {
+      const rj = x.ref.kind === 'joker' ? rateJoker(x.ref, x.gain, x.note) : { score: (x.gain || 0) * 10, why: `+${Math.round((x.gain || 0) * 100)}% điểm mỗi tay` };
+      rated.push({ ...x.ref, ...rj });
+    }
+  }
+  for (const o of options) {
+    if (o.kind === 'tarot' || o.kind === 'spectral') {
+      const d = (o.kind === 'tarot' ? TAROTS : SPECTRALS).find((x) => x.name === o.name) || { v: 1, vi: '' };
+      let s = d.v;
+      if (d.money === 'hermit') s = Math.min(20, state.money || 0) / 4;
+      if (d.money === 'temperance') s = Math.min(50, (state.jokers || []).length * 2) / 5;
+      if (d.needSlot && (state.jokers?.length || 0) >= (state.jokerSlots || 5)) s -= 2;
+      if (d.act?.kind === 'suit') {
+        const cnt = (state.fullDeck || []).filter((c) => c.suit === d.act.suit).length;
+        const flushy = (state.jokers || []).some((j) => ['droll', 'crafty', 'tribe', 'smeared', 'four_fingers'].includes(j.id)) || mainHand(state) === 'Flush';
+        s += flushy ? (cnt >= 13 ? 1 : 0) : -1;
+      }
+      const targets = d.act ? tarotTargets(d, hand, state) : [];
+      rated.push({ ...o, score: s * 2, why: d.vi, targets });
+    } else if (o.kind === 'card') {
+      const s = cardScore(o);
+      rated.push({ ...o, score: s * 1.5, why: s ? 'lá có cải biến tốt' : 'lá thường — thêm vào làm loãng bộ bài' });
+    }
+  }
+  rated.sort((a, b) => b.score - a.score);
+  const choose = opts.choose || 1;
+  const picks = rated.filter((r) => r.score >= 2).slice(0, choose);
+  return { rated, picks, skip: picks.length === 0 };
+}
+
+const ALL_JOKER_NAMES_LIST = ALL_JOKER_NAMES;
+
+return { SUITS, SUIT_SYM, RANKS, RANK_LABEL, HAND_TYPES, HAND_INFO, ANTE_BASE, STAKES, blindTarget, makeCard, standardDeck, DECKS, DECK_BY_ID, deckCards, cardLabel, JOKERS, JOKER_BY_ID, ruleFlags, detectHand, scorePlay, bestPlay, advise, bestJokerOrder, power, adviseShop, GOOD_TAGS, adviseSkip, fmt, jokerIdByName, TAROTS, PLANETS, SPECTRALS, VOUCHERS, PACKS, BOSSES, CATALOG, KIND_VI, fuzzyFind, parseScreen, mainHand, adviseShopFull, tarotTargets, advisePack, ALL_JOKER_NAMES_LIST };
 })();
 </script>
 <script>
@@ -915,29 +1334,29 @@ return { SUITS, SUIT_SYM, RANKS, RANK_LABEL, HAND_TYPES, HAND_INFO, ANTE_BASE, S
   const E = window.BalatroEngine;
   const Bridge = window.AndroidBridge || null;
   const $ = (s, r = document) => r.querySelector(s);
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ENH = [['', 'Không'], ['bonus', 'Bonus'], ['mult', 'Mult'], ['wild', 'Wild'], ['glass', 'Glass'], ['steel', 'Steel'], ['stone', 'Stone'], ['gold', 'Gold'], ['lucky', 'Lucky']];
   const EDS = [['', 'Không'], ['foil', 'Foil'], ['holo', 'Holo'], ['poly', 'Poly']];
-  const JEDS = [['', '—'], ['foil', 'Foil'], ['holo', 'Holo'], ['poly', 'Poly'], ['neg', 'Neg']];
+  const JEDS = [['', '—'], ['foil', 'Foil'], ['holo', 'Holo'], ['poly', 'Poly'], ['neg', 'Negative']];
   const SEALS = [['', 'Không'], ['gold', 'Gold'], ['red', 'Red'], ['blue', 'Blue'], ['purple', 'Purple']];
   const SEAL_COLOR = { gold: '#d9a521', red: '#d8323a', blue: '#3a7fd8', purple: '#8a4fd6' };
-  const TAGS = Object.keys(E.GOOD_TAGS);
+  const BLIND_VI = ['Small', 'Big', 'Boss'];
+  const VOUCHER_FX = { Grabber: { hands: 1 }, 'Nacho Tong': { hands: 1 }, Wasteful: { discards: 1 }, Recyclomancy: { discards: 1 }, 'Paint Brush': { hand: 1 }, Palette: { hand: 1 }, Antimatter: { slots: 1 }, 'Seed Money': { cap: 50 }, 'Money Tree': { cap: 100 }, Hieroglyph: { hands: -1, ante: -1 }, Petroglyph: { discards: -1, ante: -1 } };
 
   // ---------- Trạng thái ----------
-  const KEY = 'balatro-advisor-v1';
+  const KEY = 'balatro-advisor-v2';
   const defaults = () => ({
     tab: 'round', deckType: 'red', stakeIdx: 0, ante: 1, blind: 0, target: 300, targetManual: false, score: 0,
-    hands: 4, discards: 3, money: 4, baseHands: 4, baseDiscards: 3, handSize: 8, jokerSlots: 5,
-    hand: [], seen: [], removed: [], deckMods: {}, extraCards: [], jokers: [], levels: {}, playedTypes: [],
-    boss: { flint: false, psychic: false, debuffSuit: '', debuffFace: false }, oops: false,
-    shop: [], skipTag: 'Negative', pickRank: null, selCard: null, advice: null,
+    hands: 4, discards: 3, money: 4, baseHands: 4, baseDiscards: 3, handSize: 8, jokerSlots: 5, interestCap: 25,
+    hand: [], seen: [], removed: [], deckMods: {}, extraCards: [], jokers: [], levels: {}, playedTypes: [], handCounts: {},
+    boss: {}, bossName: '', oops: false, shopItems: [], reroll: 5, pack: null, addTo: 'shop', skipTag: 'Negative', pickRank: null, selCard: null,
   });
   let S = defaults();
   try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(defaults(), JSON.parse(raw)); } catch (e) {}
-  S.advice = null;
-  function save() { try { const { advice, ...rest } = S; localStorage.setItem(KEY, JSON.stringify(rest)); } catch (e) {} }
+  let advice = null, shopAdvice = null, packAdvice = null, skipResult = null;
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
-  // Bộ bài đầy đủ: 52 lá chuẩn − lá đã hủy + lá thêm; mang cải biến đã lưu
+  const deckDef = () => E.DECK_BY_ID[S.deckType] || E.DECKS[0];
   function fullDeck() {
     const base = E.deckCards(S.deckType).filter((c) => !S.removed.includes(c.id));
     const extra = S.extraCards.map((x) => E.makeCard(x.rank, x.suit, x));
@@ -950,386 +1369,536 @@ return { SUITS, SUIT_SYM, RANKS, RANK_LABEL, HAND_TYPES, HAND_INFO, ANTE_BASE, S
   }
   function ctxBase() {
     return {
-      jokers: S.jokers, levels: S.levels, money: S.money, jokerSlots: S.jokerSlots, handSize: S.handSize,
-      fullDeck: fullDeck(), playedTypes: new Set(S.playedTypes), boss: S.boss, oops: S.oops || S.jokers.some((j) => j.id === 'oops'),
-      stakeIdx: S.stakeIdx, ante: S.ante, hands: S.baseHands, discards: S.baseDiscards,
-      plasma: !!E.DECK_BY_ID[S.deckType]?.plasma, interestCap: E.DECK_BY_ID[S.deckType]?.noInterest ? 0 : 25,
+      jokers: S.jokers, levels: S.levels, money: S.money, jokerSlots: S.jokerSlots, handSize: S.handSize, handCounts: S.handCounts,
+      fullDeck: fullDeck(), playedTypes: new Set(S.playedTypes), boss: S.boss, oops: S.oops || S.jokers.some((j) => j.id === 'p_oops_all_6s'),
+      stakeIdx: S.stakeIdx, ante: S.ante, hands: S.baseHands, discards: S.baseDiscards, reroll: S.reroll,
+      plasma: !!deckDef().plasma, interestCap: deckDef().noInterest ? 0 : S.interestCap,
+      nextBossReq: E.blindTarget(S.stakeIdx, S.ante, 2) * (deckDef().plasma ? 2 : 1),
     };
   }
-  function targetVal() { return S.targetManual ? S.target : E.blindTarget(S.stakeIdx, S.ante, S.blind, S.boss.wall ? 4 : 2) * (E.DECK_BY_ID[S.deckType]?.plasma ? 2 : 1); }
-  // Chọn deck: đặt lại chỉ số gốc và thành phần bộ bài
+  function targetVal() {
+    if (S.targetManual) return S.target;
+    const bm = S.boss.wall === 6 ? 6 : S.boss.wall ? 4 : 2;
+    return E.blindTarget(S.stakeIdx, S.ante, S.blind, bm) * (deckDef().plasma ? 2 : 1);
+  }
   function applyDeck(id) {
     const d = E.DECK_BY_ID[id] || E.DECKS[0];
     S.deckType = d.id; S.removed = []; S.extraCards = []; S.deckMods = {}; S.seen = [];
     S.baseHands = 4 + (d.hands || 0); S.baseDiscards = 3 + (d.discards || 0);
     S.handSize = 8 + (d.hand || 0); S.jokerSlots = 5 + (d.slots || 0);
-    S.hands = S.baseHands; S.discards = S.baseDiscards; S.targetManual = false; S.advice = null;
+    S.hands = S.baseHands; S.discards = S.baseDiscards; S.targetManual = false; advice = null;
   }
 
-  // ---------- Thao tác lá ----------
-  function addCard(rank, suit) {
-    if (S.hand.length >= 12) return toast('Tay đã đủ lá');
+  // ---------- Lá trên tay ----------
+  function takeDeckCard(rank, suit) {
     const used = new Set([...S.hand.map((h) => h.deckId), ...S.seen]);
     const d = fullDeck().find((c) => c.rank === rank && c.suit === suit && !used.has(c.id));
-    const card = d ? { rank, suit, deckId: d.id, id: 'h' + d.id, enh: d.enh, ed: d.ed, seal: d.seal } : { rank, suit, deckId: null, id: 'x' + Date.now() + Math.random(), enh: null, ed: null, seal: null };
-    S.hand.push(card); S.advice = null; save(); render();
+    return d ? { rank, suit, deckId: d.id, id: 'h' + d.id, enh: d.enh, ed: d.ed, seal: d.seal } : { rank, suit, deckId: null, id: 'x' + Math.random().toString(36).slice(2), enh: null, ed: null, seal: null };
+  }
+  function addCard(rank, suit) {
+    if (S.hand.length >= 16) return toast('Tay đã đủ lá');
+    S.hand.push(takeDeckCard(rank, suit)); advice = null; save(); render();
   }
   function setMod(field, val) {
     const c = S.hand.find((h) => h.id === S.selCard); if (!c) return;
     c[field] = val || null;
-    if (c.deckId) { S.deckMods[c.deckId] = { ...(S.deckMods[c.deckId] || {}), [field]: val || null }; }
-    S.advice = null; save(); render();
+    if (c.deckId) S.deckMods[c.deckId] = { ...(S.deckMods[c.deckId] || {}), [field]: val || null };
+    advice = null; save(); render();
   }
-  function removeSel() { S.hand = S.hand.filter((h) => h.id !== S.selCard); S.selCard = null; S.advice = null; save(); render(); }
 
-  // ---------- Gợi ý ----------
+  // ---------- Gợi ý lượt chơi ----------
   function runAdvice() {
-    if (!S.hand.length) return toast('Nhập lá trên tay trước');
-    $('#adviceBox') && ($('#adviceBox').innerHTML = '<p class="reason">Đang tính…</p>');
+    if (!S.hand.length) return toast('Chưa có lá trên tay — bấm Quét hoặc nhập tay');
+    const box = $('#adviceBox'); if (box) box.innerHTML = '<div class="result"><p class="why">Đang tính…</p></div>';
     setTimeout(() => {
-      const ctx = ctxBase();
-      const hand = handCards();
+      const ctx = ctxBase(); const hand = handCards();
       const a = E.advise({ ...ctx, hand, deckRemaining: deckRemaining(), need: targetVal() - S.score, handsLeft: S.hands, discardsLeft: S.discards }, { samples: 90 });
-      const order = E.bestJokerOrder({ ...ctx, hand }, { samples: 12 });
-      a.jokerOrder = order;
-      S.advice = a; render(); pushHighlight();
+      a.jokerOrder = E.bestJokerOrder({ ...ctx, hand }, { samples: 12 });
+      advice = a; render(); pushHighlight();
     }, 30);
   }
   function applyAdvice() {
-    const a = S.advice; if (!a) return;
+    const a = advice; if (!a) return;
     if (a.action === 'play') {
       const ids = new Set(a.play.cards);
       S.hand.filter((h) => ids.has(h.id)).forEach((h) => h.deckId && S.seen.push(h.deckId));
       S.hand = S.hand.filter((h) => !ids.has(h.id));
       S.score += a.play.score; S.hands = Math.max(0, S.hands - 1); S.money += Math.round(a.play.money || 0);
       if (!S.playedTypes.includes(a.play.type)) S.playedTypes.push(a.play.type);
-      toast(S.score >= targetVal() ? 'Qua blind! Sang shop.' : `+${E.fmt(a.play.score)} điểm — nhập lá vừa rút`);
+      S.handCounts[a.play.type] = (S.handCounts[a.play.type] || 0) + 1;
+      toast(S.score >= targetVal() ? 'Qua blind! Sang shop rồi bấm Quét.' : `+${E.fmt(a.play.score)} điểm — bấm Quét để đọc lá mới`);
     } else if (a.action === 'discard') {
       const ids = new Set(a.discard.discard);
       S.hand.filter((h) => ids.has(h.id)).forEach((h) => h.deckId && S.seen.push(h.deckId));
       S.hand = S.hand.filter((h) => !ids.has(h.id));
       S.discards = Math.max(0, S.discards - 1);
-      toast('Đã bỏ — nhập lá vừa rút');
+      toast('Đã bỏ — bấm Quét để đọc lá mới');
     }
-    S.advice = null; save(); render(); Bridge && Bridge.clearHighlight && Bridge.clearHighlight();
+    advice = null; save(); render(); clearHL();
   }
-  function newRound(nextBlind) {
-    if (nextBlind) { if (S.blind < 2) S.blind++; else { S.blind = 0; S.ante++; } }
-    S.score = 0; S.hands = S.baseHands; S.discards = S.baseDiscards; S.hand = []; S.seen = []; S.playedTypes = []; S.advice = null; S.targetManual = false;
-    S.boss = { flint: false, psychic: false, debuffSuit: '', debuffFace: false };
-    save(); render(); Bridge && Bridge.clearHighlight && Bridge.clearHighlight();
+  function newRound(next) {
+    if (next) { if (S.blind < 2) S.blind++; else { S.blind = 0; S.ante++; } }
+    S.score = 0; S.hands = S.baseHands; S.discards = S.baseDiscards; S.hand = []; S.seen = []; S.playedTypes = []; S.targetManual = false;
+    S.boss = {}; S.bossName = ''; advice = null; save(); render(); clearHL();
   }
 
-  // ---------- Cầu nối Android (overlay + quét màn hình) ----------
-  let scanBoxes = {}; // id lá trên tay → khung trên màn hình
+  // ---------- Shop / pack ----------
+  function addItem(it, where) {
+    const dest = where || (S.pack ? 'pack' : 'shop');
+    const obj = { kind: it.kind, name: it.name, id: it.id || (it.kind === 'joker' ? E.jokerIdByName(it.name) : undefined), price: it.price ?? defaultPrice(it), ed: it.ed || null, hand: it.hand, type: it.type, size: it.size, rank: it.rank, suit: it.suit, enh: it.enh || null, seal: it.seal || null };
+    if (dest === 'pack') {
+      if (!S.pack) S.pack = { type: it.kind === 'card' ? 'standard' : 'buffoon', choose: 1, options: [] };
+      if (!S.pack.options.some((o) => o.name === obj.name && o.enh === obj.enh && o.ed === obj.ed)) S.pack.options.push(obj);
+      packAdvice = null;
+    } else {
+      const ex = S.shopItems.find((o) => o.name === obj.name && o.kind === obj.kind);
+      if (ex) { if (it.price != null) ex.price = it.price; if (it.ed) ex.ed = it.ed; }
+      else S.shopItems.push(obj);
+      shopAdvice = null;
+    }
+    save();
+  }
+  function defaultPrice(it) {
+    if (it.kind === 'joker') { const d = E.JOKER_BY_ID[it.id || E.jokerIdByName(it.name)]; return [0, 5, 6, 8, 20][d?.r || 1] || 5; }
+    if (it.kind === 'voucher') return 10;
+    if (it.kind === 'pack') return it.size === 'mega' ? 8 : it.size === 'jumbo' ? 6 : 4;
+    if (it.kind === 'spectral') return 4;
+    return 3;
+  }
+  function runShop() {
+    if (!S.shopItems.length) return toast('Chưa có món nào — chạm từng món trong game rồi bấm Quét');
+    $('#shopOut') && ($('#shopOut').innerHTML = '<div class="result"><p class="why">Đang mô phỏng…</p></div>');
+    setTimeout(() => { shopAdvice = E.adviseShopFull({ ...ctxBase(), hand: handCards() }, S.shopItems, { samples: 36, reroll: S.reroll }); render(); }, 30);
+  }
+  function runPack() {
+    if (!S.pack || !S.pack.options.length) return toast('Chạm từng lá trong pack rồi bấm Quét để app đọc tên');
+    $('#packOut') && ($('#packOut').innerHTML = '<div class="result"><p class="why">Đang tính…</p></div>');
+    setTimeout(() => {
+      packAdvice = E.advisePack({ ...ctxBase(), hand: handCards() }, S.pack.type, S.pack.options, { samples: 36, choose: S.pack.choose || 1 });
+      render();
+      const p = packAdvice.picks[0];
+      if (p && p.targets && p.targets.length && Bridge && Bridge.highlight) {
+        const marks = p.targets.map((id) => scanBoxes[id] && { box: scanBoxes[id], color: '#f0bd45' }).filter(Boolean);
+        if (marks.length) Bridge.highlight(JSON.stringify({ marks, label: `Dùng ${p.name} lên ${marks.length} lá này` }));
+      }
+    }, 30);
+  }
+  // Người chơi bấm "Đã mua"/"Đã chọn": cập nhật trạng thái theo món
+  function acquire(it, paid) {
+    if (paid) S.money = Math.max(0, S.money - (it.price || 0));
+    if (it.kind === 'joker') S.jokers.push({ id: it.id || E.jokerIdByName(it.name) || 'passive', ed: it.ed || null });
+    else if (it.kind === 'planet') { const h = it.hand || E.PLANETS.find((p) => p.name === it.name)?.hand; if (h) S.levels[h] = (S.levels[h] || 1) + 1; }
+    else if (it.kind === 'voucher') {
+      const fx = VOUCHER_FX[it.name] || {};
+      if (fx.hands) { S.baseHands += fx.hands; S.hands += fx.hands; }
+      if (fx.discards) { S.baseDiscards += fx.discards; S.discards += fx.discards; }
+      if (fx.hand) S.handSize += fx.hand;
+      if (fx.slots) S.jokerSlots += fx.slots;
+      if (fx.cap) S.interestCap = fx.cap;
+      if (fx.ante) S.ante = Math.max(1, S.ante + fx.ante);
+    } else if (it.kind === 'pack') {
+      S.pack = { type: it.type || 'buffoon', choose: it.size === 'mega' ? 2 : 1, options: [] }; S.addTo = 'pack'; packAdvice = null;
+      toast('Mở pack trong game, chạm từng lá rồi bấm Quét');
+    } else if (it.kind === 'card') {
+      S.extraCards.push({ rank: it.rank, suit: it.suit, enh: it.enh, seal: it.seal, ed: it.ed, id: 'x' + Date.now() });
+    } else if (it.kind === 'tarot') {
+      const t = E.TAROTS.find((x) => x.name === it.name);
+      const targets = (it.targets || []).map((id) => S.hand.find((h) => h.id === id)).filter(Boolean);
+      if (t?.act && targets.length) {
+        targets.forEach((h) => {
+          const mod = t.act.kind === 'enh' ? { enh: t.act.enh } : t.act.kind === 'suit' ? { suit: t.act.suit } : null;
+          if (mod) { Object.assign(h, mod); if (h.deckId) S.deckMods[h.deckId] = { ...(S.deckMods[h.deckId] || {}), ...mod }; }
+          if (t.act.kind === 'destroy' && h.deckId) { S.removed.push(h.deckId); S.hand = S.hand.filter((x) => x !== h); }
+        });
+      }
+      if (t?.money === 'hermit') S.money += Math.min(20, S.money);
+    } else if (it.kind === 'spectral' && it.name === 'Black Hole') {
+      E.HAND_TYPES.forEach(([n]) => (S.levels[n] = (S.levels[n] || 1) + 1));
+    }
+    if (paid) S.shopItems = S.shopItems.filter((x) => x !== it && !(x.name === it.name && x.kind === it.kind));
+    shopAdvice = null; save(); render();
+  }
+
+  // ---------- Cầu nối Android ----------
+  let scanBoxes = {};
+  function clearHL() { Bridge && Bridge.clearHighlight && Bridge.clearHighlight(); }
   function pushHighlight() {
-    if (!Bridge || !Bridge.highlight || !S.advice) return;
-    const a = S.advice; const marks = [];
+    if (!Bridge || !Bridge.highlight || !advice) return;
+    const a = advice;
     const ids = a.action === 'play' ? a.play.cards : a.action === 'discard' ? a.discard.discard : [];
-    ids.forEach((id) => { if (scanBoxes[id]) marks.push({ box: scanBoxes[id], color: a.action === 'play' ? '#4cc98f' : '#e8484e' }); });
-    const label = a.action === 'play' ? `ĐÁNH ${a.play.type} · ${E.fmt(a.play.score)}` : `BỎ ${ids.length} lá`;
+    const marks = ids.map((id) => scanBoxes[id] && { box: scanBoxes[id], color: a.action === 'play' ? '#4fd096' : '#ef5056' }).filter(Boolean);
+    const label = a.action === 'play' ? `ĐÁNH ${ids.length} lá · ${a.play.type} · ${E.fmt(a.play.score)}` : `BỎ ${ids.length} lá`;
     Bridge.highlight(JSON.stringify({ marks, label }));
   }
   window.__onScan = function (json) {
     let r; try { r = JSON.parse(json); } catch (e) { return toast('Không đọc được kết quả quét'); }
-    if (!r.cards || !r.cards.length) return toast('Không thấy lá nào — mở game ở màn chọn lá rồi quét lại');
-    S.hand = []; scanBoxes = {};
-    const unknown = [];
-    r.cards.forEach((c, i) => {
-      if (c.rank && c.suit) { addCardSilently(c.rank, c.suit); scanBoxes[S.hand[S.hand.length - 1].id] = c.box; }
-      else unknown.push({ ...c, slot: i });
-    });
-    S.advice = null; save(); render();
-    if (unknown.length) labelQueue(unknown); else toast(`Đã nhận ${r.cards.length} lá`);
-  };
-  function addCardSilently(rank, suit) {
-    const used = new Set([...S.hand.map((h) => h.deckId), ...S.seen]);
-    const d = fullDeck().find((c) => c.rank === rank && c.suit === suit && !used.has(c.id));
-    S.hand.push(d ? { rank, suit, deckId: d.id, id: 'h' + d.id, enh: d.enh, ed: d.ed, seal: d.seal } : { rank, suit, deckId: null, id: 'x' + Math.random(), enh: null, ed: null, seal: null });
-  }
-  // Dạy app nhận lá: hiện ảnh cắt, người chơi chọn số + chất một lần, app nhớ mẫu
-  function labelQueue(list) {
-    if (!list.length) {
-      $('#sheetHost').innerHTML = '';
-      // xếp lại đúng thứ tự trái → phải như trên màn hình game
-      S.hand.sort((a, b) => ((scanBoxes[a.id] || [1e9])[0]) - ((scanBoxes[b.id] || [1e9])[0]));
+    const scr = E.parseScreen(r.lines || [], r.w || 2376, r.h || 1080);
+    if (scr.money != null) S.money = scr.money;
+    if (scr.ante) S.ante = scr.ante;
+    if (scr.screen === 'round' || (scr.screen === 'unknown' && (r.cards || []).length >= 3 && !(r.lines || []).length)) {
+      if (scr.blind != null) S.blind = scr.blind;
+      if (scr.target) { S.target = scr.target; S.targetManual = true; }
+      if (scr.boss) { S.bossName = scr.boss; S.boss = { ...(E.BOSSES[scr.boss] || {}) }; }
+      S.pack = null; S.tab = 'round';
+      loadCards(r.cards || [], true);
+      return;
+    }
+    if (scr.screen === 'shop') {
+      S.tab = 'shop'; S.pack = null; S.addTo = 'shop'; if (scr.reroll) S.reroll = scr.reroll;
+      if (scr.tooltip) { addItem(scr.tooltip, 'shop'); toast(`Đã thêm ${scr.tooltip.name}${scr.tooltip.price != null ? ` ($${scr.tooltip.price})` : ''}`); }
+      else toast('Đang ở shop. Chạm một món trong game để hiện mô tả rồi bấm Quét.');
       save(); render(); return;
     }
-    const c = list[0]; let rk = null;
+    if (scr.screen === 'pack') {
+      S.tab = 'shop'; S.addTo = 'pack';
+      if (!S.pack || (scr.packType && S.pack.type !== scr.packType)) S.pack = { type: scr.packType || 'buffoon', choose: scr.choose || 1, options: [] };
+      if (scr.choose) S.pack.choose = scr.choose;
+      if (scr.tooltip) { addItem(scr.tooltip, 'pack'); toast(`Đã thêm vào pack: ${scr.tooltip.name}`); }
+      else toast('Chạm từng lá trong pack để hiện mô tả rồi bấm Quét.');
+      if (['arcana', 'spectral'].includes(S.pack.type) && (r.cards || []).length >= 3) loadCards(r.cards, false);
+      packAdvice = null; save(); render(); return;
+    }
+    if (scr.screen === 'blind') { S.tab = 'shop'; save(); render(); return toast('Màn chọn blind: xem mục "Có nên skip?" bên dưới'); }
+    toast('Chưa nhận ra màn hình. Hãy quét khi đang chơi, ở shop hoặc đang mở pack.');
+  };
+  function loadCards(cards, autoAdvise) {
+    if (!cards.length) { save(); render(); return toast('Không thấy lá nào trên tay'); }
+    S.hand = []; scanBoxes = {}; advice = null;
+    const unknown = [];
+    cards.forEach((c) => {
+      if (c.rank && c.suit) { const h = takeDeckCard(c.rank, c.suit); S.hand.push(h); scanBoxes[h.id] = c.box; }
+      else unknown.push(c);
+    });
+    save(); render();
+    if (unknown.length) labelQueue(unknown, autoAdvise);
+    else if (autoAdvise) runAdvice();
+  }
+  // Dạy app nhận lá chưa chắc: chọn số + chất một lần
+  function labelQueue(list, autoAdvise) {
     const host = $('#sheetHost');
+    if (!list.length) {
+      host.innerHTML = '';
+      S.hand.sort((a, b) => ((scanBoxes[a.id] || [1e9])[0]) - ((scanBoxes[b.id] || [1e9])[0]));
+      save(); render(); if (autoAdvise) runAdvice(); return;
+    }
+    const c = list[0]; let rk = null;
     host.innerHTML = `<div class="sheet" role="dialog" aria-label="Dạy nhận lá">
-      <div class="sec-h"><h2>Lá này là gì?</h2><small>Còn ${list.length} lá · chỉ cần dạy 1 lần</small></div>
-      <img src="${c.img}" alt="Ảnh lá bài cắt từ màn hình">
+      <div class="sec"><h2>Lá này là gì?</h2><small>còn ${list.length} lá · dạy 1 lần</small></div>
+      ${c.img ? `<img src="${c.img}" alt="Lá bài cắt từ màn hình">` : ''}
       <div class="ranks">${E.RANKS.map((r) => `<button class="k" data-lr="${r}">${E.RANK_LABEL[r]}</button>`).join('')}</div>
-      <div class="suits">${E.SUITS.map((s) => `<button class="k suit-${s}" data-ls="${s}">${E.SUIT_SYM[s]}</button>`).join('')}</div>
-      <div class="row"><button class="btn" id="lblSkip">Bỏ qua lá này</button></div></div>`;
-    host.querySelectorAll('[data-lr]').forEach((b) => b.onclick = () => { rk = +b.dataset.lr; host.querySelectorAll('[data-lr]').forEach((x) => x.classList.toggle('on', x === b)); });
-    host.querySelectorAll('[data-ls]').forEach((b) => b.onclick = () => {
+      <div class="suits">${E.SUITS.map((s) => `<button class="k suit-${s}" data-ls="${s}" aria-label="Chất ${s}">${E.SUIT_SYM[s]}</button>`).join('')}</div>
+      <button class="btn ghost" id="lblSkip">Bỏ qua lá này</button></div>`;
+    host.querySelectorAll('[data-lr]').forEach((b) => (b.onclick = () => { rk = +b.dataset.lr; host.querySelectorAll('[data-lr]').forEach((x) => x.classList.toggle('on', x === b)); }));
+    host.querySelectorAll('[data-ls]').forEach((b) => (b.onclick = () => {
       if (!rk) return toast('Chọn số trước');
       Bridge && Bridge.learn && Bridge.learn(c.tid, rk, b.dataset.ls);
-      addCardSilently(rk, b.dataset.ls); scanBoxes[S.hand[S.hand.length - 1].id] = c.box;
-      labelQueue(list.slice(1));
-    });
-    $('#lblSkip').onclick = () => labelQueue(list.slice(1));
+      const h = takeDeckCard(rk, b.dataset.ls); S.hand.push(h); scanBoxes[h.id] = c.box;
+      labelQueue(list.slice(1), autoAdvise);
+    }));
+    $('#lblSkip').onclick = () => labelQueue(list.slice(1), autoAdvise);
   }
+  function doScan() { if (Bridge && Bridge.scan) Bridge.scan(S.handSize || 8); }
 
   // ---------- Hiển thị ----------
-  function cardHTML(h, extra = '') {
-    const red = h.suit === 'H' || h.suit === 'D';
+  const isRed = (s) => s === 'H' || s === 'D';
+  const cardChip = (h) => `<span class="chipcard ${isRed(h.suit) ? 'red' : ''}">${h.enh === 'stone' ? 'Stone' : E.RANK_LABEL[h.rank] + E.SUIT_SYM[h.suit]}</span>`;
+  function cardHTML(h, extra) {
     const stone = h.enh === 'stone';
-    return `<button class="card ${red ? 'red' : ''} ${h.ed ? 'ed-' + h.ed : ''} ${extra}" data-card="${h.id}" aria-label="${stone ? 'Stone' : E.RANK_LABEL[h.rank] + ' ' + h.suit}">
+    return `<button class="card ${isRed(h.suit) ? 'red' : ''} ${h.ed ? 'ed-' + h.ed : ''} ${extra}" data-card="${h.id}" aria-label="${stone ? 'Stone' : E.RANK_LABEL[h.rank] + ' ' + h.suit}">
       ${stone ? '<span>◼</span>' : `<span>${E.RANK_LABEL[h.rank]}</span><span class="s">${E.SUIT_SYM[h.suit]}</span>`}
-      ${h.enh && !stone ? `<span class="tag">${h.enh}</span>` : ''}
-      ${h.seal ? `<span class="seal" style="background:${SEAL_COLOR[h.seal]}"></span>` : ''}</button>`;
+      ${h.enh && !stone ? `<span class="tg">${h.enh}</span>` : ''}${h.seal ? `<span class="seal" style="background:${SEAL_COLOR[h.seal]}"></span>` : ''}</button>`;
   }
-  const opts = (list, v) => list.map(([k, l]) => `<option value="${k}" ${String(v || '') === k ? 'selected' : ''}>${l}</option>`).join('');
+  const opts = (list, v) => list.map(([k, l]) => `<option value="${k}" ${String(v ?? '') === String(k) ? 'selected' : ''}>${l}</option>`).join('');
+  const actionRow = (askLabel, askId) => `<div class="actions ${Bridge ? '' : 'one'}">${Bridge ? '<button class="btn primary" id="scan">Quét màn hình</button>' : ''}<button class="btn ${Bridge ? '' : 'primary'}" id="${askId}">${askLabel}</button></div>`;
 
   function viewRound() {
-    const a = S.advice;
+    const a = advice;
     const playIds = new Set(a && a.action === 'play' ? a.play.cards : []);
     const discIds = new Set(a && a.action === 'discard' ? a.discard.discard : []);
     const sel = S.hand.find((h) => h.id === S.selCard);
-    let adv = '';
-    if (a) {
+    let res = '';
+    if (a && a.play) {
       const p = a.play;
-      const jo = a.jokerOrder && a.jokerOrder.changed ? `<p class="reason">Xếp lại joker: ${a.jokerOrder.order.map((j) => esc(E.JOKER_BY_ID[j.id]?.name || j.id)).join(' → ')} (+${Math.round(a.jokerOrder.gain * 100)}%) <button class="btn" id="applyOrder">Áp dụng</button></p>` : '';
-      if (a.action === 'play') adv = `<div class="advice play"><div class="verdict"><span class="act">ĐÁNH</span><b>${p.type}</b>
-        <span class="score"><span class="c">${E.fmt(p.chips)}</span> × <span class="m">${E.fmt(p.mult)}</span> = <b>${E.fmt(p.score)}</b></span></div>
-        <p class="reason">${esc(a.reason)}</p>${jo}
-        ${a.alternatives?.length ? `<div class="alts">${a.alternatives.map((x) => `<div><span>${x.type} · ${x.cards.length} lá</span><span class="score">${E.fmt(x.score)}</span></div>`).join('')}</div>` : ''}
-        <div class="row"><button class="btn go grow" id="doIt">Đã đánh xong</button></div></div>`;
-      else if (a.action === 'discard') adv = `<div class="advice discard"><div class="verdict"><span class="act">BỎ ${a.discard.discard.length} LÁ</span>
-        <span class="note">Nếu đánh ngay: ${p.type} ${E.fmt(p.score)}</span></div>
-        <p class="reason">${esc(a.reason)} Kỳ vọng sau khi rút: ~${E.fmt(a.discard.avg)} điểm.</p>${jo}
-        <div class="row"><button class="btn danger grow" id="doIt">Đã bỏ xong</button></div></div>`;
+      const jo = a.jokerOrder && a.jokerOrder.changed ? `<p class="why">Xếp lại joker: ${a.jokerOrder.order.map((j) => esc(E.JOKER_BY_ID[j.id]?.name || j.id)).join(' → ')} (+${Math.round(a.jokerOrder.gain * 100)}%) <button class="btn small" id="applyOrder">Áp dụng</button></p>` : '';
+      if (a.action === 'play') {
+        const cs = S.hand.filter((h) => playIds.has(h.id));
+        res = `<div class="result play"><div class="verdict">ĐÁNH ${cs.length} LÁ · ${esc(p.type)}</div>
+          <div class="cards-inline">${cs.map(cardChip).join('')}</div>
+          <div class="score"><span class="c">${E.fmt(p.chips)}</span> × <span class="m">${E.fmt(p.mult)}</span> = <b>${E.fmt(p.score)}</b></div>
+          <p class="why">${esc(a.reason)}</p>${jo}
+          ${a.alternatives?.length ? `<div class="alts">${a.alternatives.map((x) => `<div><span>${esc(x.type)}</span><span class="score">${E.fmt(x.score)}</span></div>`).join('')}</div>` : ''}
+          <button class="btn go" id="doIt">Đã đánh xong</button></div>`;
+      } else if (a.action === 'discard') {
+        const cs = S.hand.filter((h) => discIds.has(h.id));
+        res = `<div class="result discard"><div class="verdict">BỎ ${cs.length} LÁ</div>
+          <div class="cards-inline">${cs.map(cardChip).join('')}</div>
+          <p class="why">${esc(a.reason)} Kỳ vọng sau khi rút: ~${E.fmt(a.discard.avg)} điểm. Nếu đánh ngay: ${esc(p.type)} ${E.fmt(p.score)}.</p>${jo}
+          <button class="btn danger" id="doIt">Đã bỏ xong</button></div>`;
+      }
     }
     return `
-      <section class="sec-h"><h2>Tay bài</h2><small>${S.hand.length}/${S.handSize} lá · còn ${deckRemaining().length} lá trong bộ</small></section>
-      <div class="hand" id="hand">${S.hand.length ? S.hand.map((h) => cardHTML(h, `${h.id === S.selCard ? 'sel' : ''} ${playIds.has(h.id) ? 'play' : ''} ${discIds.has(h.id) ? 'disc' : ''}`)).join('') : '<div class="empty">Chạm số rồi chạm chất để thêm lá. Lá đã chạm có thể đổi Enhancement / Seal.</div>'}</div>
-      <div class="ask">
-        ${Bridge ? '<button class="btn" id="scan">Quét màn hình</button>' : ''}
-        <button class="btn primary grow" id="ask">Gợi ý nước đi</button>
-      </div>
-      <div id="adviceBox">${adv}</div>
+      ${actionRow('Gợi ý nước đi', 'ask')}
+      <div id="adviceBox">${res}</div>
+      <div class="sec"><h2>Tay bài</h2><small>${S.hand.length}/${S.handSize} lá · còn ${deckRemaining().length} trong bộ</small></div>
+      <div class="hand">${S.hand.length ? S.hand.map((h) => cardHTML(h, `${h.id === S.selCard ? 'sel' : ''} ${playIds.has(h.id) ? 'play' : ''} ${discIds.has(h.id) ? 'disc' : ''}`)).join('') : `<div class="empty">${Bridge ? 'Mở game ở lúc đang cầm bài rồi bấm Quét.' : 'Mở "Nhập tay" bên dưới để thêm lá.'}</div>`}</div>
       ${sel ? `<div class="mods">
-        <label>Enhancement<select class="sel" id="mEnh">${opts(ENH, sel.enh)}</select></label>
-        <label>Edition<select class="sel" id="mEd">${opts(EDS, sel.ed)}</select></label>
-        <label>Seal<select class="sel" id="mSeal">${opts(SEALS, sel.seal)}</select></label></div>
-        <div class="row"><button class="btn danger" id="rmCard">Xóa lá</button><button class="btn" id="deselect">Xong</button></div>` : ''}
-      <div class="pad">
+        <label class="f">Enhancement<select class="sel" id="mEnh">${opts(ENH, sel.enh)}</select></label>
+        <label class="f">Edition<select class="sel" id="mEd">${opts(EDS, sel.ed)}</select></label>
+        <label class="f">Seal<select class="sel" id="mSeal">${opts(SEALS, sel.seal)}</select></label></div>
+        <div class="row"><button class="btn danger small" id="rmCard">Xóa lá</button><button class="btn small" id="deselect">Xong</button></div>` : ''}
+      <details class="pad" ${Bridge ? '' : 'open'}><summary>Nhập tay / sửa lá</summary><div class="padin">
         <div class="ranks">${E.RANKS.map((r) => `<button class="k ${S.pickRank === r ? 'on' : ''}" data-rank="${r}">${E.RANK_LABEL[r]}</button>`).join('')}<button class="k wide" id="clearHand">Xóa tay</button></div>
         <div class="suits">${E.SUITS.map((s) => `<button class="k suit-${s}" data-suit="${s}" aria-label="Chất ${s}">${E.SUIT_SYM[s]}</button>`).join('')}</div>
-      </div>
-      <div class="row">
-        <button class="btn grow" id="nextBlind">Thắng blind → blind sau</button>
-        <button class="btn" id="resetRound">Làm lại vòng</button>
-      </div>
-      ${S.blind === 2 ? `<section class="sec-h"><h2>Luật boss</h2></section>
+        <p class="note">Chạm số rồi chạm chất để thêm lá. Chạm một lá trên tay để đổi Enhancement / Edition / Seal.</p>
+      </div></details>
+      ${S.blind === 2 ? `<div class="sec"><h2>Luật Boss${S.bossName ? ': ' + esc(S.bossName) : ''}</h2></div>
       <div class="grid2">
-        <label><input type="checkbox" id="bFlint" ${S.boss.flint ? 'checked' : ''}> The Flint (½ gốc)</label>
-        <label><input type="checkbox" id="bPsy" ${S.boss.psychic ? 'checked' : ''}> The Psychic (5 lá)</label>
-        <label><input type="checkbox" id="bFace" ${S.boss.debuffFace ? 'checked' : ''}> The Plant (lá mặt)</label>
-        <label><input type="checkbox" id="bWall" ${S.boss.wall ? 'checked' : ''}> The Wall (×4)</label>
-        <label>Vô hiệu chất <select class="sel" id="bSuit">${opts([['', 'Không'], ['S', '♠ Goad'], ['H', '♥ Heart'], ['C', '♣ Club'], ['D', '♦ Window']], S.boss.debuffSuit)}</select></label>
-      </div>` : ''}`;
+        <label class="f"><span><input type="checkbox" id="bFlint" ${S.boss.flint ? 'checked' : ''}> The Flint (gốc ½)</span></label>
+        <label class="f"><span><input type="checkbox" id="bPsy" ${S.boss.psychic ? 'checked' : ''}> The Psychic (5 lá)</span></label>
+        <label class="f"><span><input type="checkbox" id="bFace" ${S.boss.debuffFace ? 'checked' : ''}> The Plant (lá mặt)</span></label>
+        <label class="f">Vô hiệu chất<select class="sel" id="bSuit">${opts([['', 'Không'], ['S', '♠ The Goad'], ['H', '♥ The Head'], ['C', '♣ The Club'], ['D', '♦ The Window']], S.boss.debuffSuit)}</select></label>
+      </div>` : ''}
+      <div class="row"><button class="btn grow" id="nextBlind">Thắng blind → sang shop</button><button class="btn ghost" id="resetRound">Làm lại vòng</button></div>`;
   }
 
-  let jq = '';
-  function jokerResults(q, attr) {
-    const n = q.trim().toLowerCase();
-    const list = E.JOKERS.filter((j) => !n || j.name.toLowerCase().includes(n) || j.vi.toLowerCase().includes(n)).slice(0, 40);
-    return list.map((j) => `<button ${attr}="${j.id}"><b>${esc(j.name)}</b><small>${esc(j.vi)}</small></button>`).join('');
+  let sq = '';
+  function searchResults(q) {
+    const n = q.trim().toLowerCase(); if (!n) return '';
+    return E.CATALOG.filter((x) => x.name.toLowerCase().includes(n) || (x.vi || '').toLowerCase().includes(n)).slice(0, 30)
+      .map((x, i) => `<button data-cat="${E.CATALOG.indexOf(x)}"><span class="kind">${E.KIND_VI[x.kind]}</span> <b>${esc(x.name)}</b><small>${esc(x.vi || '')}</small></button>`).join('');
   }
-  function viewJokers() {
-    return `
-      <section class="sec-h"><h2>Joker</h2><small>${S.jokers.length}/${S.jokerSlots} ô · trái → phải</small></section>
-      <div class="jlist">${S.jokers.length ? S.jokers.map((j, i) => {
-        const d = E.JOKER_BY_ID[j.id] || { name: j.id, vi: '' };
-        const val = d.value === 'custom' ? `<input id="jc${i}" data-jf="chips" data-ji="${i}" type="number" placeholder="+chip" value="${j.chips ?? ''}"><input data-jf="mult" data-ji="${i}" type="number" placeholder="+mult" value="${j.mult ?? ''}"><input data-jf="x" data-ji="${i}" type="number" step="0.1" placeholder="×" value="${j.x ?? ''}">`
-          : d.value === 'chat' ? `<select class="sel" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'H')}</select>`
-          : d.value === 'la' ? `<select class="sel" data-jf="rank" data-ji="${i}">${opts(E.RANKS.map((r) => [String(r), E.RANK_LABEL[r]]), String(j.rank || 14))}</select><select class="sel" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'S')}</select>`
-          : d.value === 'kichHoat' ? `<label class="note"><input type="checkbox" data-jf="v" data-ji="${i}" ${j.v ? 'checked' : ''}> đang ×4</label>`
-          : d.value ? `<input data-jf="v" data-ji="${i}" type="number" step="0.1" placeholder="${d.value === 'x' ? '×' : '+'}" value="${j.v ?? ''}" aria-label="Giá trị hiện tại">` : '';
-        return `<div class="joker"><span class="idx">${i + 1}</span><div class="nm"><b>${esc(d.name)}</b><small>${esc(d.vi)}</small></div>
-          <div class="ctl">${val}<select class="sel" data-jf="ed" data-ji="${i}" aria-label="Edition">${opts(JEDS, j.ed)}</select>
-          <button class="ib" data-jmove="${i}" data-d="-1" aria-label="Sang trái">↑</button><button class="ib" data-jmove="${i}" data-d="1" aria-label="Sang phải">↓</button><button class="ib" data-jdel="${i}" aria-label="Xóa">✕</button></div></div>`;
-      }).join('') : '<div class="empty">Chưa có joker. Tìm và thêm bên dưới.</div>'}</div>
-      <div class="row"><button class="btn primary grow" id="optOrder">Xếp thứ tự tối ưu</button></div>
-      <input class="search" id="jq" placeholder="Tìm joker: cavendish, flush, ×mult…" value="${esc(jq)}" autocomplete="off">
-      <div class="results" id="jres">${jokerResults(jq, 'data-jadd')}</div>
-      <p class="note">Joker chưa có trong danh sách: chọn "Joker khác (tự nhập)" và gõ +Chip / +Mult / ×Mult của nó.</p>`;
+  function itemRow(o, i, where) {
+    const label = o.kind === 'card' ? `${E.RANK_LABEL[o.rank] || ''}${E.SUIT_SYM[o.suit] || ''} ${[o.enh, o.seal && o.seal + ' seal', o.ed].filter(Boolean).join(' · ')}` : o.name;
+    return `<div class="item"><div class="nm"><span class="kind">${E.KIND_VI[o.kind] || ''}</span><b>${esc(label)}</b></div><div class="ctl">
+      ${o.kind === 'joker' ? `<select class="sel" style="width:auto" data-ied="${where}:${i}" aria-label="Edition">${opts(JEDS, o.ed)}</select>` : ''}
+      ${where === 'shop' ? `<label class="note">$<input type="number" inputmode="numeric" data-iprice="${i}" value="${o.price ?? ''}" aria-label="Giá"></label>` : ''}
+      <button class="ib" data-idel="${where}:${i}" aria-label="Xóa">✕</button></div></div>`;
   }
-
-  let sq = '', shopResult = null, skipResult = null;
   function viewShop() {
+    const cap = ctxBase().interestCap;
+    let shopRes = '';
+    if (shopAdvice) {
+      const buys = shopAdvice.plan.filter((p) => p.act === 'buy');
+      shopRes = `<div class="result info"><div class="verdict">${buys.length ? `MUA ${buys.length} MÓN` : 'KHÔNG MUA GÌ'}</div>
+        <div class="plan">${shopAdvice.plan.map((p, i) => `<div class="step ${p.act}"><span class="tag">${p.act === 'buy' ? 'MUA' : 'BỎ QUA'}</span>
+          <div><b>${esc(p.name)} <span class="price">$${p.price ?? '?'}</span></b><small>${esc(p.why)}${p.why2 ? ' · ' + esc(p.why2) : ''}</small></div>
+          ${p.act === 'buy' ? `<button class="btn small go" data-bought="${i}">Đã mua</button>` : '<span></span>'}</div>`).join('')}</div>
+        ${shopAdvice.reroll ? `<div class="step buy"><span class="tag">REROLL</span><div><b>Reroll <span class="price">$${shopAdvice.reroll.cost}</span></b><small>${esc(shopAdvice.reroll.why)}</small></div><span></span></div>` : ''}
+        <p class="why">Sau đó bấm <b>Next Round</b>. Còn khoảng $${shopAdvice.moneyAfter} → lãi +$${shopAdvice.interest}/vòng.</p></div>`;
+    }
+    let packRes = '';
+    if (packAdvice) {
+      packRes = packAdvice.skip ? `<div class="result info"><div class="verdict">BỎ QUA PACK</div><p class="why">Không lá nào đáng lấy — bấm Skip trong game.</p></div>`
+        : `<div class="result play"><div class="verdict">CHỌN ${packAdvice.picks.map((p) => esc(p.kind === 'card' ? `${E.RANK_LABEL[p.rank]}${E.SUIT_SYM[p.suit]}` : p.name)).join(' + ')}</div>
+        <div class="plan">${packAdvice.rated.map((p, i) => `<div class="step ${packAdvice.picks.includes(p) ? 'pick' : 'skip'}"><span class="tag">${packAdvice.picks.includes(p) ? 'CHỌN' : '—'}</span>
+          <div><b>${esc(p.kind === 'card' ? `${E.RANK_LABEL[p.rank]}${E.SUIT_SYM[p.suit]} ${p.enh || ''}` : p.name)}</b><small>${esc(p.why)}${p.targets?.length ? ' · dùng lên: ' + p.targets.map((id) => { const h = S.hand.find((x) => x.id === id); return h ? E.RANK_LABEL[h.rank] + E.SUIT_SYM[h.suit] : ''; }).join(' ') : ''}</small></div>
+          ${packAdvice.picks.includes(p) ? `<button class="btn small go" data-picked="${i}">Đã chọn</button>` : '<span></span>'}</div>`).join('')}</div></div>`;
+    }
     return `
-      <section class="sec-h"><h2>Món trong shop</h2><small>$${S.money} đang có</small></section>
-      <div class="jlist">${S.shop.length ? S.shop.map((o, i) => `<div class="shopitem"><div><b>${esc(o.kind === 'joker' ? E.JOKER_BY_ID[o.joker.id]?.name : o.kind === 'planet' ? `${E.HAND_INFO[o.hand].planet} (${o.hand})` : o.name)}</b>
-        ${o.kind === 'joker' ? `<select class="sel" data-sed="${i}">${opts(JEDS, o.joker.ed)}</select>` : ''}</div>
-        <label class="note">$<input type="number" data-sprice="${i}" value="${o.price}" aria-label="Giá"></label><button class="ib" data-sdel="${i}" aria-label="Xóa">✕</button></div>`).join('') : '<div class="empty">Thêm joker hoặc planet đang bày trong shop.</div>'}</div>
-      <div class="row"><select class="sel grow" id="planetSel">${E.HAND_TYPES.map(([n, , , , , p]) => `<option value="${n}">${p} — ${n}</option>`).join('')}</select><button class="btn" id="addPlanet">+ Planet</button></div>
-      <input class="search" id="sq" placeholder="Thêm joker trong shop…" value="${esc(sq)}" autocomplete="off">
-      <div class="results" id="sres">${sq ? jokerResults(sq, 'data-sadd') : ''}</div>
-      <div class="row"><button class="btn primary grow" id="rateShop">Nên mua gì?</button></div>
-      <div id="shopOut">${shopResult ? shopResult : ''}</div>
-      <section class="sec-h"><h2>Có nên skip blind?</h2></section>
-      <div class="row"><select class="sel" id="tagSel">${TAGS.map((t) => `<option ${t === S.skipTag ? 'selected' : ''}>${t}</option>`).join('')}</select>
-        <button class="btn grow" id="rateSkip">Đánh giá skip ${['Small', 'Big', 'Boss'][S.blind]} Blind</button></div>
+      ${actionRow(S.pack ? 'Chọn lá nào?' : 'Nên mua gì?', S.pack ? 'ratePack' : 'rateShop')}
+      ${S.pack ? `<div class="sec"><h2>Đang mở: ${esc(E.PACKS.find((p) => p.type === S.pack.type)?.name || 'Pack')}</h2><small>chọn ${S.pack.choose}</small></div>
+        <div id="packOut">${packRes}</div>
+        <div class="list">${S.pack.options.length ? S.pack.options.map((o, i) => itemRow(o, i, 'pack')).join('') : '<div class="empty">Trong game, chạm từng lá trong pack để hiện mô tả, rồi bấm Quét.</div>'}</div>
+        <div class="row"><button class="btn small ghost" id="closePack">Đóng pack (về shop)</button></div>` : ''}
+      ${!S.pack ? `<div id="shopOut">${shopRes}</div>` : ''}
+      <div class="sec"><h2>Món trong shop</h2><small>$${S.money} · lãi tối đa $${cap}</small></div>
+      <div class="list">${S.shopItems.length ? S.shopItems.map((o, i) => itemRow(o, i, 'shop')).join('') : '<div class="empty">Trong game, chạm một món để hiện mô tả rồi bấm Quét — app đọc tên và giá. Hoặc tìm và thêm bên dưới.</div>'}</div>
+      <div class="row"><label class="note">Giá reroll $<input class="sel" style="width:70px;display:inline-block" type="number" inputmode="numeric" id="rerollIn" value="${S.reroll}"></label><button class="btn small ghost" id="clearShop">Xóa danh sách shop</button></div>
+      <div class="seg" role="tablist" aria-label="Thêm vào"><button class="${S.addTo === 'shop' ? 'on' : ''}" data-addto="shop">Thêm vào shop</button><button class="${S.addTo === 'pack' ? 'on' : ''}" data-addto="pack">Thêm vào pack</button></div>
+      <input class="search" id="sq" placeholder="Tìm: joker, tarot, planet, voucher, pack…" value="${esc(sq)}" autocomplete="off">
+      <div class="results" id="sres">${searchResults(sq)}</div>
+      <div class="sec"><h2>Có nên skip blind?</h2></div>
+      <div class="row"><select class="sel" style="width:auto;flex:1" id="tagSel">${Object.keys(E.GOOD_TAGS).map((t) => `<option ${t === S.skipTag ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <button class="btn small" id="rateSkip">Đánh giá skip ${BLIND_VI[S.blind]}</button></div>
       <div id="skipOut">${skipResult || ''}</div>`;
   }
 
-  function viewSetup() {
-    const deck = fullDeck(); const ids = new Set(deck.map((c) => c.id));
-    const inHand = new Set(S.hand.map((h) => h.deckId));
+  let jq = '';
+  function viewJokers() {
+    const jres = jq.trim() ? E.JOKERS.filter((j) => j.name.toLowerCase().includes(jq.toLowerCase()) || j.vi.toLowerCase().includes(jq.toLowerCase())).slice(0, 30)
+      .map((j) => `<button data-jadd="${j.id}"><b>${esc(j.name)}</b><small>${esc(j.vi)}</small></button>`).join('') : '';
     return `
-      <section class="sec-h"><h2>Ván chơi</h2></section>
-      <label class="note">Deck<select class="sel" id="deckSel" style="width:100%">${E.DECKS.map((d) => `<option value="${d.id}" ${d.id === S.deckType ? 'selected' : ''}>${d.name} — ${d.vi}</option>`).join('')}</select></label>
+      <div class="sec"><h2>Joker đang có</h2><small>${S.jokers.length}/${S.jokerSlots} ô · thứ tự trái → phải</small></div>
+      <div class="list">${S.jokers.length ? S.jokers.map((j, i) => {
+        const d = E.JOKER_BY_ID[j.id] || { name: j.id, vi: '' };
+        const val = d.value === 'custom' ? `<input data-jf="chips" data-ji="${i}" type="number" placeholder="+chip" value="${j.chips ?? ''}"><input data-jf="mult" data-ji="${i}" type="number" placeholder="+mult" value="${j.mult ?? ''}"><input data-jf="x" data-ji="${i}" type="number" step="0.1" placeholder="×" value="${j.x ?? ''}">`
+          : d.value === 'chat' ? `<select class="sel" style="width:auto" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'H')}</select>`
+          : d.value === 'la' ? `<select class="sel" style="width:auto" data-jf="rank" data-ji="${i}">${opts(E.RANKS.map((r) => [String(r), E.RANK_LABEL[r]]), String(j.rank || 14))}</select><select class="sel" style="width:auto" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'S')}</select>`
+          : d.value === 'kichHoat' ? `<label class="note"><input type="checkbox" data-jf="v" data-ji="${i}" ${j.v ? 'checked' : ''}> đang ×4</label>`
+          : d.value ? `<input data-jf="v" data-ji="${i}" type="number" step="0.1" placeholder="${d.value === 'x' ? '×' : '+'}" value="${j.v ?? ''}" aria-label="Giá trị hiện tại">` : '';
+        return `<div class="item"><div class="nm"><b>${i + 1}. ${esc(d.name)}</b><small>${esc(d.vi)}</small></div><div class="ctl">${val}
+          <select class="sel" style="width:auto" data-jf="ed" data-ji="${i}" aria-label="Edition">${opts(JEDS, j.ed)}</select>
+          <button class="ib" data-jmove="${i}" data-d="-1" aria-label="Sang trái">↑</button><button class="ib" data-jmove="${i}" data-d="1" aria-label="Sang phải">↓</button><button class="ib" data-jdel="${i}" aria-label="Bán / xóa">✕</button></div></div>`;
+      }).join('') : '<div class="empty">Chưa có joker. Tìm và thêm bên dưới.</div>'}</div>
+      <button class="btn" id="optOrder">Xếp thứ tự tối ưu</button>
+      <input class="search" id="jq" placeholder="Tìm joker theo tên hoặc hiệu ứng…" value="${esc(jq)}" autocomplete="off">
+      <div class="results" id="jres">${jres}</div>
+      <p class="note">Joker tích lũy (Ride the Bus, Hologram…) nhập giá trị hiện tại vào ô số. Joker chưa có trong danh sách: chọn "Joker khác (tự nhập)".</p>`;
+  }
+
+  function viewSetup() {
+    const deck = fullDeck(); const ids = new Set(deck.map((c) => c.id)); const inHand = new Set(S.hand.map((h) => h.deckId));
+    return `
+      <div class="sec"><h2>Ván chơi</h2></div>
+      <label class="f">Deck<select class="sel" id="deckSel">${E.DECKS.map((d) => `<option value="${d.id}" ${d.id === S.deckType ? 'selected' : ''}>${d.name} — ${d.vi}</option>`).join('')}</select></label>
       <div class="grid2">
-        <label class="note">Stake<select class="sel" id="stake">${E.STAKES.map((s, i) => `<option value="${i}" ${i === S.stakeIdx ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
-        <label class="note">Kích thước tay<input class="sel" id="hsize" type="number" value="${S.handSize}"></label>
-        <label class="note">Lượt đánh mỗi vòng<input class="sel" id="bh" type="number" value="${S.baseHands}"></label>
-        <label class="note">Lượt bỏ mỗi vòng<input class="sel" id="bd" type="number" value="${S.baseDiscards}"></label>
-        <label class="note">Ô joker<input class="sel" id="slots" type="number" value="${S.jokerSlots}"></label>
-        <label class="note"><input type="checkbox" id="oops" ${S.oops ? 'checked' : ''}> Có Oops! All 6s</label>
+        <label class="f">Stake<select class="sel" id="stake">${E.STAKES.map((s, i) => `<option value="${i}" ${i === S.stakeIdx ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label class="f">Số lá trên tay<input class="sel" id="hsize" type="number" value="${S.handSize}"></label>
+        <label class="f">Lượt đánh mỗi vòng<input class="sel" id="bh" type="number" value="${S.baseHands}"></label>
+        <label class="f">Lượt bỏ mỗi vòng<input class="sel" id="bd" type="number" value="${S.baseDiscards}"></label>
+        <label class="f">Ô joker<input class="sel" id="slots" type="number" value="${S.jokerSlots}"></label>
+        <label class="f">Trần lãi ($)<input class="sel" id="capIn" type="number" value="${S.interestCap}"></label>
       </div>
-      <section class="sec-h"><h2>Level tay bài</h2><small>tăng khi dùng planet</small></section>
+      <div class="sec"><h2>Level tay bài</h2><small>tăng khi dùng planet</small></div>
       <div class="levels">${E.HAND_TYPES.map(([n]) => { const l = S.levels[n] || 1; const hi = E.HAND_INFO[n];
         return `<div><span>${n} <span class="note">${hi.chips + hi.dc * (l - 1)}×${hi.mult + hi.dm * (l - 1)}</span></span><button class="ib" data-lv="${n}" data-d="-1" aria-label="Giảm level">−</button><b>${l}</b><button class="ib" data-lv="${n}" data-d="1" aria-label="Tăng level">+</button></div>`; }).join('')}</div>
-      <section class="sec-h"><h2>Bộ bài</h2><small>${deck.length} lá · chạm để đánh dấu lá đã bị hủy</small></section>
-      <div style="overflow-x:auto"><div class="deckgrid">${E.deckCards(S.deckType).map((c) => `<button class="${c.suit === 'H' || c.suit === 'D' ? 'red' : ''} ${ids.has(c.id) ? '' : 'gone'} ${inHand.has(c.id) ? 'inhand' : ''}" data-deck="${c.id}" aria-label="${c.id}">${E.RANK_LABEL[c.rank]}${E.SUIT_SYM[c.suit]}</button>`).join('')}</div></div>
-      <div class="row"><select class="sel" id="xr">${E.RANKS.map((r) => `<option value="${r}">${E.RANK_LABEL[r]}</option>`).join('')}</select><select class="sel" id="xs">${E.SUITS.map((s) => `<option value="${s}">${E.SUIT_SYM[s]}</option>`).join('')}</select>
-        <button class="btn" id="addExtra">+ Lá thêm (Cryptid, DNA…)</button></div>
-      ${S.extraCards.length ? `<p class="note">Lá thêm: ${S.extraCards.map((x, i) => `${E.RANK_LABEL[x.rank]}${E.SUIT_SYM[x.suit]} <button class="ib" data-xdel="${i}" aria-label="Xóa">✕</button>`).join(' ')}</p>` : ''}
-      <section class="sec-h"><h2>Bắt đầu lại</h2></section>
-      <div class="row"><button class="btn danger" id="newRun">Ván mới (xóa hết)</button></div>
-      <p class="note">Gợi ý dùng giá trị kỳ vọng cho hiệu ứng may rủi (Lucky, Misprint, Bloodstone). Dữ liệu lưu trên máy này.</p>`;
+      <div class="sec"><h2>Bộ bài</h2><small>${deck.length} lá · chạm để đánh dấu lá đã bị hủy</small></div>
+      <div style="overflow-x:auto"><div class="deckgrid">${E.deckCards(S.deckType).map((c) => `<button class="${isRed(c.suit) ? 'red' : ''} ${ids.has(c.id) ? '' : 'gone'} ${inHand.has(c.id) ? 'inhand' : ''}" data-deck="${c.id}" aria-label="${c.id}">${E.RANK_LABEL[c.rank]}${E.SUIT_SYM[c.suit]}</button>`).join('')}</div></div>
+      <div class="row"><select class="sel" style="width:auto" id="xr">${E.RANKS.map((r) => `<option value="${r}">${E.RANK_LABEL[r]}</option>`).join('')}</select><select class="sel" style="width:auto" id="xs">${E.SUITS.map((s) => `<option value="${s}">${E.SUIT_SYM[s]}</option>`).join('')}</select>
+        <button class="btn small" id="addExtra">+ Lá thêm vào bộ</button></div>
+      ${S.extraCards.length ? `<p class="note">Lá thêm: ${S.extraCards.map((x, i) => `${E.RANK_LABEL[x.rank]}${E.SUIT_SYM[x.suit]}${x.enh ? ' ' + x.enh : ''} <button class="ib" data-xdel="${i}" aria-label="Xóa">✕</button>`).join(' ')}</p>` : ''}
+      <div class="sec"><h2>Bắt đầu lại</h2></div>
+      <button class="btn danger" id="newRun">Ván mới (giữ deck đang chọn)</button>
+      <p class="note">Hiệu ứng may rủi (Lucky, Misprint, Bloodstone) được tính theo kỳ vọng. Dữ liệu lưu trên máy này.</p>`;
+  }
+
+  function openBlindSheet() {
+    const host = $('#sheetHost');
+    host.innerHTML = `<div class="sheet" role="dialog" aria-label="Sửa blind">
+      <div class="sec"><h2>Blind hiện tại</h2><small>Quét màn chơi sẽ tự điền</small></div>
+      <div class="grid2">
+        <label class="f">Ante<select class="sel" id="anteSel">${Array.from({ length: 16 }, (_, i) => `<option value="${i + 1}" ${S.ante === i + 1 ? 'selected' : ''}>Ante ${i + 1}</option>`).join('')}</select></label>
+        <label class="f">Blind<select class="sel" id="blindSel">${opts([[0, 'Small'], [1, 'Big'], [2, 'Boss']], S.blind)}</select></label>
+        <label class="f">Điểm cần<input class="sel" id="targetIn" type="number" inputmode="numeric" value="${targetVal()}"></label>
+        <label class="f">Điểm đã có<input class="sel" id="scoreIn" type="number" inputmode="numeric" value="${S.score}"></label>
+      </div>
+      <button class="btn primary" id="sheetDone">Xong</button></div>`;
+    $('#anteSel').onchange = (e) => { S.ante = +e.target.value; S.targetManual = false; $('#targetIn').value = targetVal(); save(); renderHeader(); };
+    $('#blindSel').onchange = (e) => { S.blind = +e.target.value; S.targetManual = false; $('#targetIn').value = targetVal(); save(); renderHeader(); };
+    $('#targetIn').onchange = (e) => { S.target = +e.target.value || 0; S.targetManual = true; save(); renderHeader(); };
+    $('#scoreIn').onchange = (e) => { S.score = +e.target.value || 0; save(); renderHeader(); };
+    $('#sheetDone').onclick = () => { host.innerHTML = ''; advice = null; render(); };
   }
 
   function renderHeader() {
-    const ante = $('#ante');
-    if (!ante.options.length) for (let i = 1; i <= 16; i++) ante.add(new Option('Ante ' + i, i));
-    ante.value = S.ante; $('#blindSel').value = S.blind;
     const t = targetVal();
-    if (document.activeElement !== $('#target')) $('#target').value = t;
+    $('#blindBtn').textContent = `Ante ${S.ante} · ${S.blind === 2 && S.bossName ? S.bossName : BLIND_VI[S.blind]}`;
     $('#scoreNow').textContent = E.fmt(S.score); $('#targetNum').textContent = E.fmt(t);
     $('#needNum').textContent = E.fmt(Math.max(0, t - S.score));
-    $('#barFill').style.width = Math.min(100, (S.score / t) * 100) + '%';
+    $('#barFill').style.width = Math.min(100, (S.score / Math.max(1, t)) * 100) + '%';
     $('#handsN').textContent = S.hands; $('#discardsN').textContent = S.discards; $('#moneyN').textContent = S.money;
     document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
   }
   function render() {
     renderHeader();
     const v = $('#view');
-    v.innerHTML = S.tab === 'round' ? viewRound() : S.tab === 'jokers' ? viewJokers() : S.tab === 'shop' ? viewShop() : viewSetup();
+    v.innerHTML = S.tab === 'round' ? viewRound() : S.tab === 'shop' ? viewShop() : S.tab === 'jokers' ? viewJokers() : viewSetup();
     bind();
   }
-  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200); }
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2600); }
 
   // ---------- Sự kiện ----------
   function bind() {
     const v = $('#view');
     const on = (sel, ev, fn) => { const el = v.querySelector(sel); if (el) el[ev] = fn; };
-    v.querySelectorAll('[data-rank]').forEach((b) => b.onclick = () => { S.pickRank = +b.dataset.rank; render(); });
-    v.querySelectorAll('[data-suit]').forEach((b) => b.onclick = () => { if (!S.pickRank) return toast('Chạm số trước'); addCard(S.pickRank, b.dataset.suit); });
-    v.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { S.selCard = S.selCard === b.dataset.card ? null : b.dataset.card; render(); });
+    on('#scan', 'onclick', doScan);
+    // Vòng
     on('#ask', 'onclick', runAdvice);
-    on('#scan', 'onclick', () => Bridge.scan(S.handSize || 8));
     on('#doIt', 'onclick', applyAdvice);
-    on('#applyOrder', 'onclick', () => { S.jokers = S.advice.jokerOrder.order; S.advice = null; save(); runAdvice(); });
+    on('#applyOrder', 'onclick', () => { S.jokers = advice.jokerOrder.order; save(); runAdvice(); });
+    v.querySelectorAll('[data-rank]').forEach((b) => (b.onclick = () => { S.pickRank = +b.dataset.rank; render(); $('details.pad') && ($('details.pad').open = true); }));
+    v.querySelectorAll('[data-suit]').forEach((b) => (b.onclick = () => { if (!S.pickRank) return toast('Chạm số trước'); addCard(S.pickRank, b.dataset.suit); $('details.pad') && ($('details.pad').open = true); }));
+    v.querySelectorAll('[data-card]').forEach((b) => (b.onclick = () => { S.selCard = S.selCard === b.dataset.card ? null : b.dataset.card; render(); }));
     on('#mEnh', 'onchange', (e) => setMod('enh', e.target.value));
     on('#mEd', 'onchange', (e) => setMod('ed', e.target.value));
     on('#mSeal', 'onchange', (e) => setMod('seal', e.target.value));
-    on('#rmCard', 'onclick', removeSel);
+    on('#rmCard', 'onclick', () => { S.hand = S.hand.filter((h) => h.id !== S.selCard); S.selCard = null; advice = null; save(); render(); });
     on('#deselect', 'onclick', () => { S.selCard = null; render(); });
-    on('#clearHand', 'onclick', () => { S.hand = []; S.advice = null; save(); render(); });
-    on('#nextBlind', 'onclick', () => { newRound(true); S.tab = 'shop'; render(); });
+    on('#clearHand', 'onclick', () => { S.hand = []; advice = null; save(); render(); });
+    on('#nextBlind', 'onclick', () => { newRound(true); S.tab = 'shop'; S.shopItems = []; shopAdvice = null; save(); render(); });
     on('#resetRound', 'onclick', () => newRound(false));
-    const boss = (id, k) => on(id, 'onchange', (e) => { S.boss[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; S.advice = null; save(); render(); });
-    boss('#bFlint', 'flint'); boss('#bPsy', 'psychic'); boss('#bFace', 'debuffFace'); boss('#bSuit', 'debuffSuit'); boss('#bWall', 'wall');
-    // Joker
-    on('#jq', 'oninput', (e) => { jq = e.target.value; $('#jres').innerHTML = jokerResults(jq, 'data-jadd'); bindAdd(); });
-    function bindAdd() { v.querySelectorAll('[data-jadd]').forEach((b) => b.onclick = () => { if (S.jokers.length >= S.jokerSlots + S.jokers.filter((j) => j.ed === 'neg').length) return toast('Hết ô joker — tăng số ô trong Cài đặt'); S.jokers.push({ id: b.dataset.jadd }); jq = ''; save(); render(); }); }
-    bindAdd();
-    v.querySelectorAll('[data-jf]').forEach((el) => el.onchange = () => { const j = S.jokers[+el.dataset.ji]; const f = el.dataset.jf; j[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (el.value === '' ? undefined : +el.value) : f === 'rank' ? +el.value : (el.value || null); S.advice = null; save(); });
-    v.querySelectorAll('[data-jmove]').forEach((b) => b.onclick = () => { const i = +b.dataset.jmove, k = i + +b.dataset.d; if (k < 0 || k >= S.jokers.length) return; [S.jokers[i], S.jokers[k]] = [S.jokers[k], S.jokers[i]]; save(); render(); });
-    v.querySelectorAll('[data-jdel]').forEach((b) => b.onclick = () => { S.jokers.splice(+b.dataset.jdel, 1); save(); render(); });
-    on('#optOrder', 'onclick', () => { const r = E.bestJokerOrder({ ...ctxBase(), hand: handCards() }, { samples: 25 }); if (!r.changed) return toast('Thứ tự hiện tại đã tối ưu'); S.jokers = r.order; save(); render(); toast('Đã xếp lại thứ tự joker'); });
-    // Shop
-    on('#sq', 'oninput', (e) => { sq = e.target.value; $('#sres').innerHTML = sq ? jokerResults(sq, 'data-sadd') : ''; bindShopAdd(); });
-    function bindShopAdd() { v.querySelectorAll('[data-sadd]').forEach((b) => b.onclick = () => { const d = E.JOKER_BY_ID[b.dataset.sadd]; S.shop.push({ kind: 'joker', joker: { id: d.id }, price: [0, 5, 6, 8, 20][d.r] || 5 }); sq = ''; shopResult = null; save(); render(); }); }
-    bindShopAdd();
-    on('#addPlanet', 'onclick', () => { S.shop.push({ kind: 'planet', hand: $('#planetSel').value, price: 3 }); shopResult = null; save(); render(); });
-    v.querySelectorAll('[data-sprice]').forEach((el) => el.onchange = () => { S.shop[+el.dataset.sprice].price = +el.value; save(); });
-    v.querySelectorAll('[data-sed]').forEach((el) => el.onchange = () => { S.shop[+el.dataset.sed].joker.ed = el.value || null; save(); });
-    v.querySelectorAll('[data-sdel]').forEach((b) => b.onclick = () => { S.shop.splice(+b.dataset.sdel, 1); shopResult = null; save(); render(); });
-    on('#rateShop', 'onclick', () => {
-      if (!S.shop.length) return toast('Thêm món trong shop trước');
-      $('#shopOut').innerHTML = '<p class="reason">Đang mô phỏng…</p>';
-      setTimeout(() => {
-        const r = E.adviseShop({ ...ctxBase(), jokers: S.jokers }, S.shop, { samples: 40 });
-        const req = E.blindTarget(S.stakeIdx, S.ante, 2);
-        shopResult = `<p class="reason">Sức điểm hiện tại ~${E.fmt(r.base)}/tay · Boss ante ${S.ante} cần ${E.fmt(req)} trong ${S.baseHands} tay.</p>` + r.items.map((it, k) => `<div class="shopitem"><div><b>${k + 1}. ${esc(it.kind === 'joker' ? E.JOKER_BY_ID[it.joker.id]?.name : it.kind === 'planet' ? E.HAND_INFO[it.hand].planet : it.name)}</b>
-          <div class="note">${it.note ? esc(it.note) + ' · ' : ''}${it.afford ? '' : 'không đủ tiền · '}${it.lostInterest ? `mất $${it.lostInterest} lãi/vòng` : 'không mất lãi'}</div></div>
-          <span class="gain ${it.gain > 0.1 ? 'up' : 'low'}">${it.gain == null ? '?' : (it.gain >= 0 ? '+' : '') + Math.round(it.gain * 100) + '%'}</span><span class="note">$${it.price}</span></div>`).join('') +
-          '<p class="note">% = mức tăng điểm trung bình mỗi tay. Món tăng dưới 10% thường không đáng phá mốc lãi.</p>';
-        render();
-      }, 30);
-    });
+    const boss = (id, k) => on(id, 'onchange', (e) => { S.boss[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; advice = null; save(); render(); });
+    boss('#bFlint', 'flint'); boss('#bPsy', 'psychic'); boss('#bFace', 'debuffFace'); boss('#bSuit', 'debuffSuit');
+    // Shop / pack
+    on('#rateShop', 'onclick', runShop);
+    on('#ratePack', 'onclick', runPack);
+    on('#closePack', 'onclick', () => { S.pack = null; S.addTo = 'shop'; packAdvice = null; clearHL(); save(); render(); });
+    on('#clearShop', 'onclick', () => { S.shopItems = []; shopAdvice = null; save(); render(); });
+    on('#rerollIn', 'onchange', (e) => { S.reroll = +e.target.value || 5; save(); });
+    v.querySelectorAll('[data-addto]').forEach((b) => (b.onclick = () => { S.addTo = b.dataset.addto; save(); render(); }));
+    const bindCat = () => v.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
+      const it = E.CATALOG[+b.dataset.cat];
+      if (S.addTo === 'pack') { if (!S.pack) S.pack = { type: it.kind === 'tarot' ? 'arcana' : it.kind === 'planet' ? 'celestial' : it.kind === 'spectral' ? 'spectral' : 'buffoon', choose: 1, options: [] }; addItem(it, 'pack'); }
+      else addItem(it, 'shop');
+      sq = ''; render(); toast(`Đã thêm ${it.name}`);
+    }));
+    on('#sq', 'oninput', (e) => { sq = e.target.value; $('#sres').innerHTML = searchResults(sq); bindCat(); });
+    bindCat();
+    v.querySelectorAll('[data-iprice]').forEach((el) => (el.onchange = () => { S.shopItems[+el.dataset.iprice].price = +el.value; shopAdvice = null; save(); }));
+    v.querySelectorAll('[data-ied]').forEach((el) => (el.onchange = () => { const [w, i] = el.dataset.ied.split(':'); (w === 'pack' ? S.pack.options : S.shopItems)[+i].ed = el.value || null; save(); }));
+    v.querySelectorAll('[data-idel]').forEach((b) => (b.onclick = () => { const [w, i] = b.dataset.idel.split(':'); (w === 'pack' ? S.pack.options : S.shopItems).splice(+i, 1); shopAdvice = null; packAdvice = null; save(); render(); }));
+    v.querySelectorAll('[data-bought]').forEach((b) => (b.onclick = () => { const p = shopAdvice.plan[+b.dataset.bought]; acquire(S.shopItems.find((x) => x.name === p.name && x.kind === p.kind) || p, true); toast(`Đã mua ${p.name}`); }));
+    v.querySelectorAll('[data-picked]').forEach((b) => (b.onclick = () => {
+      const p = packAdvice.rated[+b.dataset.picked]; acquire(p, false);
+      S.pack.choose = Math.max(0, (S.pack.choose || 1) - 1); S.pack.options = S.pack.options.filter((o) => !(o.name === p.name && o.enh === p.enh));
+      if (S.pack.choose <= 0) { S.pack = null; toast(`Đã chọn ${p.name} — đóng pack`); } else toast(`Đã chọn ${p.name}`);
+      packAdvice = null; clearHL(); save(); render();
+    }));
     on('#tagSel', 'onchange', (e) => { S.skipTag = e.target.value; save(); });
     on('#rateSkip', 'onclick', () => {
-      if (S.blind === 2) { skipResult = '<p class="reason">Boss Blind không skip được.</p>'; return render(); }
+      if (S.blind === 2) { skipResult = '<p class="why">Boss Blind không skip được.</p>'; return render(); }
       const r = E.adviseSkip({ ...ctxBase() }, S.blind, S.skipTag);
-      skipResult = `<div class="advice ${r.skip ? 'play' : 'discard'}"><div class="verdict"><span class="act">${r.skip ? 'NÊN SKIP' : 'KHÔNG SKIP'}</span></div>
-        <p class="reason">Ước tính cả vòng ~${E.fmt(r.roundCap)} điểm; blind sau cần ${E.fmt(r.nextReq)}, boss cần ${E.fmt(r.bossReq)} (dư ${Math.round((r.margin - 1) * 100)}%). Tag ${esc(S.skipTag)}: giá trị ${r.tagValue}/5.</p></div>`;
+      skipResult = `<div class="result ${r.skip ? 'play' : 'discard'}"><div class="verdict">${r.skip ? 'NÊN SKIP' : 'KHÔNG SKIP'}</div>
+        <p class="why">Ước tính cả vòng ~${E.fmt(r.roundCap)} điểm; blind sau cần ${E.fmt(r.nextReq)}, boss cần ${E.fmt(r.bossReq)}. Tag ${esc(S.skipTag)}: ${r.tagValue}/5.</p></div>`;
       render();
     });
+    // Joker
+    on('#jq', 'oninput', (e) => { jq = e.target.value; render(); const el = $('#jq'); el.focus(); el.setSelectionRange(jq.length, jq.length); });
+    v.querySelectorAll('[data-jadd]').forEach((b) => (b.onclick = () => { S.jokers.push({ id: b.dataset.jadd }); jq = ''; save(); render(); }));
+    v.querySelectorAll('[data-jf]').forEach((el) => (el.onchange = () => { const j = S.jokers[+el.dataset.ji]; const f = el.dataset.jf; j[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (el.value === '' ? undefined : +el.value) : f === 'rank' ? +el.value : (el.value || null); advice = null; save(); }));
+    v.querySelectorAll('[data-jmove]').forEach((b) => (b.onclick = () => { const i = +b.dataset.jmove, k = i + +b.dataset.d; if (k < 0 || k >= S.jokers.length) return; [S.jokers[i], S.jokers[k]] = [S.jokers[k], S.jokers[i]]; save(); render(); }));
+    v.querySelectorAll('[data-jdel]').forEach((b) => (b.onclick = () => { S.jokers.splice(+b.dataset.jdel, 1); save(); render(); }));
+    on('#optOrder', 'onclick', () => { const r = E.bestJokerOrder({ ...ctxBase(), hand: handCards() }, { samples: 25 }); if (!r.changed) return toast('Thứ tự hiện tại đã tối ưu'); S.jokers = r.order; save(); render(); toast('Đã xếp lại thứ tự joker'); });
     // Cài đặt
-    const num = (id, k, after) => on(id, 'onchange', (e) => { S[k] = Math.max(0, +e.target.value || 0); after && after(); save(); render(); });
-    on('#deckSel', 'onchange', (e) => { applyDeck(e.target.value); save(); render(); toast('Đã đổi deck — đã đặt lại lượt đánh/bỏ, ô joker, bộ bài'); });
+    on('#deckSel', 'onchange', (e) => { applyDeck(e.target.value); save(); render(); toast('Đã đổi deck'); });
     on('#stake', 'onchange', (e) => { S.stakeIdx = +e.target.value; S.targetManual = false; save(); render(); });
-    num('#hsize', 'handSize'); num('#slots', 'jokerSlots');
+    const num = (id, k, after) => on(id, 'onchange', (e) => { S[k] = Math.max(0, +e.target.value || 0); after && after(); save(); render(); });
+    num('#hsize', 'handSize'); num('#slots', 'jokerSlots'); num('#capIn', 'interestCap');
     num('#bh', 'baseHands', () => (S.hands = S.baseHands)); num('#bd', 'baseDiscards', () => (S.discards = S.baseDiscards));
-    on('#oops', 'onchange', (e) => { S.oops = e.target.checked; save(); });
-    v.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { const n = b.dataset.lv; S.levels[n] = Math.max(1, (S.levels[n] || 1) + +b.dataset.d); S.advice = null; save(); render(); });
-    v.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => { const id = b.dataset.deck; S.removed = S.removed.includes(id) ? S.removed.filter((x) => x !== id) : [...S.removed, id]; save(); render(); });
+    v.querySelectorAll('[data-lv]').forEach((b) => (b.onclick = () => { const n = b.dataset.lv; S.levels[n] = Math.max(1, (S.levels[n] || 1) + +b.dataset.d); advice = null; save(); render(); }));
+    v.querySelectorAll('[data-deck]').forEach((b) => (b.onclick = () => { const id = b.dataset.deck; S.removed = S.removed.includes(id) ? S.removed.filter((x) => x !== id) : [...S.removed, id]; save(); render(); }));
     on('#addExtra', 'onclick', () => { S.extraCards.push({ rank: +$('#xr').value, suit: $('#xs').value, id: 'x' + Date.now() }); save(); render(); });
-    v.querySelectorAll('[data-xdel]').forEach((b) => b.onclick = () => { S.extraCards.splice(+b.dataset.xdel, 1); save(); render(); });
+    v.querySelectorAll('[data-xdel]').forEach((b) => (b.onclick = () => { S.extraCards.splice(+b.dataset.xdel, 1); save(); render(); }));
     let armed = false;
-    on('#newRun', 'onclick', (e) => { if (!armed) { armed = true; e.target.textContent = 'Chạm lần nữa để xóa'; return; } const keep = S.deckType; S = defaults(); applyDeck(keep); S.money = 4 + (E.DECK_BY_ID[keep]?.money || 0); save(); render(); toast('Đã tạo ván mới'); });
+    on('#newRun', 'onclick', (e) => { if (!armed) { armed = true; e.target.textContent = 'Chạm lần nữa để xóa ván'; return; } const keep = S.deckType; S = defaults(); applyDeck(keep); S.money = 4 + (E.DECK_BY_ID[keep]?.money || 0); save(); render(); toast('Đã tạo ván mới'); });
   }
 
-  // Thanh trên
-  $('#ante').onchange = (e) => { S.ante = +e.target.value; S.targetManual = false; save(); render(); };
-  $('#blindSel').onchange = (e) => { S.blind = +e.target.value; S.targetManual = false; save(); render(); };
-  $('#target').onchange = (e) => { S.target = +e.target.value || 0; S.targetManual = true; save(); render(); };
-  document.querySelectorAll('[data-ctr]').forEach((b) => b.onclick = () => { const k = b.dataset.ctr; S[k] = Math.max(0, S[k] + +b.dataset.d); S.advice = null; save(); renderHeader(); if (S.tab === 'round') render(); });
+  $('#blindBtn').onclick = openBlindSheet;
+  document.querySelectorAll('[data-ctr]').forEach((b) => (b.onclick = () => { const k = b.dataset.ctr; S[k] = Math.max(0, S[k] + +b.dataset.d); advice = null; save(); renderHeader(); }));
   $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; save(); render(); };
 
-  // Ví dụ khi mở lần đầu: một tay bài mẫu để thấy tool hoạt động
-  if (!S.hand.length && !S.jokers.length && !S.example) {
-    S.example = true;
-    [[14, 'S'], [13, 'S'], [7, 'S'], [4, 'S'], [9, 'H'], [9, 'D'], [3, 'C'], [11, 'D']].forEach(([r, s]) => addCardSilently(r, s));
-    S.jokers = [{ id: 'joker' }, { id: 'droll' }];
-    save();
-    setTimeout(() => toast('Tay bài mẫu — xóa và nhập tay của bạn'), 400);
-  }
-  render();
   // Trong cửa sổ nổi Android, hộp chọn gốc của WebView bị crash → thay bằng bảng chọn tự vẽ.
   if (Bridge) {
     const openPicker = (sel) => {
       const host = $('#sheetHost');
-      host.innerHTML = `<div class="sheet" role="dialog" aria-label="Chọn"><div class="results">${[...sel.options].map((o, i) =>
+      host.innerHTML = `<div class="sheet" role="dialog" aria-label="Chọn"><div class="results" style="max-height:none">${[...sel.options].map((o, i) =>
         `<button data-pick="${i}" ${o.selected ? 'style="color:var(--gold)"' : ''}>${esc(o.text)}</button>`).join('')}</div>
-        <button class="btn" id="pickClose">Đóng</button></div>`;
-      host.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
-        sel.selectedIndex = +b.dataset.pick; host.innerHTML = '';
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+        <button class="btn ghost" id="pickClose">Đóng</button></div>`;
+      host.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => { sel.selectedIndex = +b.dataset.pick; host.innerHTML = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); }));
       $('#pickClose').onclick = () => (host.innerHTML = '');
     };
     const block = (e) => { const s = e.target.closest && e.target.closest('select'); if (!s) return; e.preventDefault(); e.stopPropagation(); if (e.type === 'click' || e.type === 'touchend') openPicker(s); };
     ['touchstart', 'touchend', 'mousedown', 'click'].forEach((t) => document.addEventListener(t, block, { capture: true, passive: false }));
   }
+
+  // Lần đầu mở trên web: ví dụ để thấy tool hoạt động
+  if (!Bridge && !S.hand.length && !S.jokers.length && !S.example) {
+    S.example = true;
+    [[14, 'S'], [13, 'S'], [7, 'S'], [4, 'S'], [9, 'H'], [9, 'D'], [3, 'C'], [11, 'D']].forEach(([r, s]) => S.hand.push(takeDeckCard(r, s)));
+    S.jokers = [{ id: 'joker' }, { id: 'droll' }];
+    save(); setTimeout(() => toast('Tay bài mẫu — xóa và nhập tay của bạn'), 400);
+  }
+  render();
   window.__advisor = { state: () => S, render };
   window.__toast = toast;
 })();

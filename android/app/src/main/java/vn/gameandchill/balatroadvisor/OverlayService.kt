@@ -39,6 +39,9 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.ServiceCompat
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
@@ -60,6 +63,7 @@ class OverlayService : Service() {
     private lateinit var wm: WindowManager
     private val main = Handler(Looper.getMainLooper())
     private lateinit var detector: CardDetector
+    private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     private var bubble: TextView? = null
     private var bubbleLp: WindowManager.LayoutParams? = null
@@ -178,10 +182,29 @@ class OverlayService : Service() {
         }
         val bmp = try { toBitmap(img) } finally { img.close() }
         setOverlaysVisible(true)
+        // 1) đọc chữ (OCR, chạy trong máy) → 2) tìm lá → 3) gửi cả hai sang bảng gợi ý
+        try {
+            recognizer.process(InputImage.fromBitmap(bmp, 0))
+                .addOnSuccessListener { text ->
+                    val lines = JSONArray()
+                    for (b in text.textBlocks) for (l in b.lines) {
+                        val r = l.boundingBox ?: continue
+                        lines.put(JSONObject().put("t", l.text).put("box", JSONArray().put(r.left).put(r.top).put(r.width()).put(r.height())))
+                    }
+                    detectThenSend(bmp, expected, lines)
+                }
+                .addOnFailureListener { detectThenSend(bmp, expected, JSONArray()) }
+        } catch (e: Exception) {
+            detectThenSend(bmp, expected, JSONArray())
+        }
+    }
+
+    private fun detectThenSend(bmp: Bitmap, expected: Int, lines: JSONArray) {
+        val w = bmp.width; val h = bmp.height
         Thread {
             val found = try { detector.detect(bmp, expected) } catch (e: Exception) { emptyList() }
             bmp.recycle()
-            main.post { scanning = false; sendScan(found) }
+            main.post { scanning = false; sendScan(found, lines, w, h) }
         }.start()
     }
 
@@ -195,7 +218,7 @@ class OverlayService : Service() {
         val c = Bitmap.createBitmap(b, 0, 0, img.width, img.height); b.recycle(); return c
     }
 
-    private fun sendScan(found: List<FoundCard>) {
+    private fun sendScan(found: List<FoundCard>, lines: JSONArray, w: Int, h: Int) {
         val arr = JSONArray()
         for (c in found) {
             val o = JSONObject().put("tid", c.tid).put("box", JSONArray().apply { c.box.forEach { put(it) } })
@@ -205,7 +228,8 @@ class OverlayService : Service() {
         }
         hl?.setMarks(emptyList(), null)
         showPanel()
-        js("window.__onScan(${JSONObject.quote(JSONObject().put("cards", arr).toString())})")
+        val payload = JSONObject().put("cards", arr).put("lines", lines).put("w", w).put("h", h)
+        js("window.__onScan(${JSONObject.quote(payload.toString())})")
     }
 
     // ---------- Bong bóng ----------

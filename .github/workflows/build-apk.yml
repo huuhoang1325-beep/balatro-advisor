@@ -21,6 +21,7 @@ jobs:
       - name: Test bộ não + ghép trang vào app
         run: |
           node test/engine.test.mjs
+          node test/catalog.test.mjs
           node build.mjs
 
       - uses: actions/setup-java@v4

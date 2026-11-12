@@ -11,8 +11,8 @@ android {
         applicationId = "vn.gameandchill.balatroadvisor"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     signingConfigs {
@@ -37,4 +37,6 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
+    // OCR chạy offline trong máy (mô hình chữ Latin đi kèm app)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
