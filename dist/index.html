@@ -1,0 +1,1336 @@
+<title>Balatro Advisor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Bố cục: app một màn hình như mặt bàn nỉ; trên = thanh tiến độ blind, giữa = tay bài + gợi ý, dưới = thanh tab */
+:root {
+  --felt: #0d2622;      /* nền bàn */
+  --panel: #143630;     /* khối nổi */
+  --panel-2: #1b443c;   /* nút, ô nhập */
+  --line: #2b5a50;
+  --ink: #ecf2ee;
+  --muted: #98b3aa;
+  --chips: #3d8fe6;     /* màu chip trong game */
+  --mult: #e8484e;      /* màu mult trong game */
+  --gold: #eab83f;      /* tiền */
+  --go: #4cc98f;        /* nên đánh */
+  --paper: #f3efe4;     /* mặt lá bài */
+  --paper-ink: #1d1d1f;
+  --font-display: "Pixelify Sans", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--felt); color: var(--ink); font-family: var(--font-body); font-size: 14px; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; }
+.scroll > * { flex-shrink: 0; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; padding-block: 12px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 14px; }
+
+/* Thanh blind */
+.blind { padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.blind-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-size: 18px; letter-spacing: .02em; margin-right: auto; }
+.brand b { color: var(--mult); }
+.sel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 32px; }
+.meter { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.bar { height: 8px; background: var(--felt); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--go); width: 0; transition: width .3s; }
+.meter-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 13px; }
+.meter-num .need { color: var(--mult); }
+.counters { display: flex; gap: 8px; flex-wrap: wrap; }
+.ctr { display: flex; align-items: center; gap: 2px; background: var(--felt); border-radius: 6px; padding: 2px; }
+.ctr span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 0 4px; }
+.ctr b { font-family: var(--font-num); min-width: 3ch; text-align: center; }
+.ctr.h b { color: var(--chips); } .ctr.d b { color: var(--mult); } .ctr.m b { color: var(--gold); }
+.ctr button { width: 28px; height: 28px; border: 0; border-radius: 4px; background: var(--panel-2); }
+
+/* Tay bài */
+.sec-h { display: flex; align-items: baseline; gap: 8px; }
+.sec-h h2 { font-family: var(--font-display); font-weight: 500; font-size: 15px; margin: 0; letter-spacing: .03em; }
+.sec-h small { color: var(--muted); margin-left: auto; }
+.hand { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; min-height: 64px; padding-top: 8px; }
+.hand .empty { grid-column: 1 / -1; }
+.card { width: 100%; aspect-ratio: 5 / 7; border-radius: 6px; background: var(--paper); color: var(--paper-ink); border: 2px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; font-family: var(--font-display); font-size: 18px; line-height: 1; padding: 0; transition: transform .15s; }
+.card .s { font-size: 20px; }
+.card.red { color: #c8242d; }
+.card.sel { border-color: var(--gold); transform: translateY(-4px); }
+.card.play { box-shadow: 0 0 0 3px var(--go); transform: translateY(-8px); }
+.card.disc { box-shadow: 0 0 0 3px var(--mult); opacity: .75; }
+.card .tag { position: absolute; bottom: 2px; left: 2px; right: 2px; font-family: var(--font-body); font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; border-radius: 2px; padding: 1px 0; background: #00000014; }
+.card .seal { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; }
+.card.ed-foil { background: linear-gradient(135deg, #e4ecf6, #c9d8ea); } .card.ed-holo { background: linear-gradient(135deg, #fbe1e6, #e7f4ff); } .card.ed-poly { background: linear-gradient(135deg, #ffe5c2, #e2ffd9, #e3dcff); }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 14px; text-align: center; width: 100%; }
+
+/* Bàn phím lá */
+.pad { display: grid; gap: 6px; }
+.ranks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.suits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.k { min-height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); font-family: var(--font-display); font-size: 17px; }
+.k.on { background: var(--gold); color: #2a2006; border-color: var(--gold); }
+.k.suit-H, .k.suit-D { color: #ff7d82; }
+.k.wide { font-family: var(--font-body); font-size: 13px; }
+.mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mods label { display: grid; gap: 2px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Gợi ý */
+.advice { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.advice.play { border-color: var(--go); }
+.advice.discard { border-color: var(--mult); }
+.verdict { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.verdict .act { font-family: var(--font-display); font-size: 24px; }
+.advice.play .act { color: var(--go); } .advice.discard .act { color: var(--mult); }
+.score { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.score .c { background: var(--chips); color: #fff; padding: 1px 6px; border-radius: 4px; }
+.score .m { background: var(--mult); color: #fff; padding: 1px 6px; border-radius: 4px; }
+.reason { color: var(--muted); margin: 0; }
+.alts { display: grid; gap: 4px; font-size: 13px; }
+.alts div { display: flex; gap: 8px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 4px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); font-weight: 600; }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: #2a2006; }
+.btn.go { background: var(--go); border-color: var(--go); color: #062a1a; }
+.btn.danger { border-color: var(--mult); color: #ff9da1; }
+.btn.grow { flex: 1; }
+.ask { display: flex; gap: 8px; }
+
+/* Joker */
+.jlist { display: grid; gap: 6px; }
+.joker { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.joker .idx { font-family: var(--font-num); color: var(--muted); width: 2ch; text-align: right; }
+.joker .nm { min-width: 0; }
+.joker .nm b { display: block; font-weight: 600; }
+.joker .nm small { color: var(--muted); }
+.joker .ctl { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.joker input, .shopitem input { width: 64px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-height: 32px; }
+.ib { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); }
+.search { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 44px; }
+.results { display: grid; gap: 2px; max-height: 260px; overflow-y: auto; }
+.results button { text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 8px 4px; }
+.results button small { color: var(--muted); display: block; }
+
+/* Shop */
+.shopitem { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; background: var(--panel); border-radius: 8px; padding: 8px; }
+.gain { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.gain.up { color: var(--go); } .gain.low { color: var(--muted); }
+.note { color: var(--muted); font-size: 12px; }
+
+/* Cài đặt */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.levels { display: grid; gap: 4px; }
+.levels div { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; }
+.levels b { font-family: var(--font-num); min-width: 3ch; text-align: center; }
+.deckgrid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; }
+.deckgrid button { aspect-ratio: 3/4; max-width: 100%; border-radius: 3px; border: 0; background: var(--paper); color: var(--paper-ink); font-family: var(--font-display); font-size: 11px; padding: 0; }
+.deckgrid button.red { color: #c8242d; }
+.deckgrid button.gone { opacity: .18; }
+.deckgrid button.inhand { outline: 2px solid var(--gold); }
+
+/* Tab dưới */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.tabs button { background: transparent; border: 0; min-height: 52px; color: var(--muted); font-family: var(--font-display); font-size: 14px; border-top: 2px solid transparent; }
+.tabs button.on { color: var(--ink); border-top-color: var(--gold); }
+
+/* Sheet dán nhãn lá quét */
+.sheet { position: fixed; inset: auto 0 0 0; background: var(--panel); border-top: 1px solid var(--line); padding: 14px max(16px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 10px; z-index: 20; max-width: 560px; margin: 0 auto; }
+.sheet img { height: 90px; image-rendering: pixelated; border-radius: 6px; background: #000; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--felt); padding: 8px 14px; border-radius: 8px; font-weight: 600; z-index: 30; }
+</style>
+
+<div class="app" id="app">
+  <header class="blind">
+    <div class="blind-top">
+      <div class="brand">Balatro <b>Advisor</b></div>
+      <select class="sel" id="ante" aria-label="Ante"></select>
+      <select class="sel" id="blindSel" aria-label="Blind">
+        <option value="0">Small</option><option value="1">Big</option><option value="2">Boss</option>
+      </select>
+      <input class="sel" id="target" type="number" inputmode="numeric" aria-label="Điểm cần" style="width:96px">
+    </div>
+    <div class="meter">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="meter-num"><span id="scoreNow">0</span> / <span id="targetNum">300</span> · thiếu <span class="need" id="needNum">300</span></div>
+    </div>
+    <div class="counters">
+      <div class="ctr h"><span>Đánh</span><button data-ctr="hands" data-d="-1" aria-label="Giảm lượt đánh">−</button><b id="handsN">4</b><button data-ctr="hands" data-d="1" aria-label="Tăng lượt đánh">+</button></div>
+      <div class="ctr d"><span>Bỏ</span><button data-ctr="discards" data-d="-1" aria-label="Giảm lượt bỏ">−</button><b id="discardsN">3</b><button data-ctr="discards" data-d="1" aria-label="Tăng lượt bỏ">+</button></div>
+      <div class="ctr m"><span>$</span><button data-ctr="money" data-d="-1" aria-label="Giảm tiền">−</button><b id="moneyN">4</b><button data-ctr="money" data-d="1" aria-label="Tăng tiền">+</button></div>
+    </div>
+  </header>
+
+  <main class="scroll" id="view"></main>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="round" class="on">Vòng</button>
+    <button data-tab="jokers">Joker</button>
+    <button data-tab="shop">Shop</button>
+    <button data-tab="setup">Cài đặt</button>
+  </nav>
+</div>
+<div id="sheetHost"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+window.BalatroEngine = (function(){
+// Balatro Advisor — bộ não: nhận diện tay, tính điểm, chọn nước, xếp joker, chấm shop.
+// Bám theo trình tự evaluate_play của Balatro 1.0.1. Giá trị ngẫu nhiên dùng kỳ vọng.
+
+const SUITS = ['S', 'H', 'C', 'D'];
+const SUIT_SYM = { S: '♠', H: '♥', C: '♣', D: '♦' };
+const RANKS = [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+const RANK_LABEL = { 14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: '10', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2' };
+
+const HAND_TYPES = [
+  // tên, chip gốc, mult gốc, +chip/level, +mult/level, tên hành tinh
+  ['Flush Five', 160, 16, 50, 3, 'Eris'],
+  ['Flush House', 140, 14, 40, 4, 'Ceres'],
+  ['Five of a Kind', 120, 12, 35, 3, 'Planet X'],
+  ['Straight Flush', 100, 8, 40, 4, 'Neptune'],
+  ['Four of a Kind', 60, 7, 30, 3, 'Mars'],
+  ['Full House', 40, 4, 25, 2, 'Earth'],
+  ['Flush', 35, 4, 15, 2, 'Jupiter'],
+  ['Straight', 30, 4, 30, 3, 'Saturn'],
+  ['Three of a Kind', 30, 3, 20, 2, 'Venus'],
+  ['Two Pair', 20, 2, 20, 1, 'Uranus'],
+  ['Pair', 10, 2, 15, 1, 'Mercury'],
+  ['High Card', 5, 1, 10, 1, 'Pluto'],
+];
+const HAND_INFO = Object.fromEntries(HAND_TYPES.map(([n, c, m, dc, dm, p]) => [n, { chips: c, mult: m, dc, dm, planet: p }]));
+
+// Điểm gốc mỗi ante (Small Blind). Big ×1,5, Boss ×2.
+const ANTE_BASE = {
+  white: [100, 300, 800, 2000, 5000, 11000, 20000, 35000, 50000],
+  green: [100, 300, 900, 2600, 5500, 10000, 20000, 36000, 60000],
+  purple: [100, 300, 1000, 3200, 9000, 25000, 60000, 110000, 200000],
+};
+const STAKES = ['White', 'Red', 'Green', 'Black', 'Blue', 'Purple', 'Orange', 'Gold'];
+function blindTarget(stakeIdx, ante, blind /*0 small,1 big,2 boss*/, bossMult = 2) {
+  const table = stakeIdx >= 5 ? ANTE_BASE.purple : stakeIdx >= 2 ? ANTE_BASE.green : ANTE_BASE.white;
+  let base;
+  if (ante <= 8) base = table[Math.max(0, ante)];
+  else {
+    // Endless: công thức của game (get_blind_amount)
+    const a = table[8], b = 1.6, c = ante - 8, d = 1 + 0.2 * c;
+    base = Math.floor(a * Math.pow(b + Math.pow(0.75 * c, d), c));
+    const k = Math.pow(10, Math.floor(Math.log10(base)) - 1);
+    base = Math.floor(base / k) * k;
+  }
+  const mult = blind === 0 ? 1 : blind === 1 ? 1.5 : bossMult;
+  return Math.floor(base * mult);
+}
+
+// ---------- Lá bài ----------
+let _uid = 1;
+function makeCard(rank, suit, opts = {}) {
+  return { id: opts.id || `c${_uid++}`, rank, suit, enh: opts.enh || null, ed: opts.ed || null, seal: opts.seal || null, bonusChips: opts.bonusChips || 0, debuffed: !!opts.debuffed };
+}
+function standardDeck() {
+  const d = [];
+  for (const s of SUITS) for (const r of RANKS) d.push(makeCard(r, s, { id: `${RANK_LABEL[r]}${s}` }));
+  return d;
+}
+// 15 deck khởi đầu: chỉ số ảnh hưởng tới gợi ý + thành phần bộ bài.
+// hands/discards/hand/slots/money là mức thay đổi so với gốc (4 đánh, 3 bỏ, 8 lá, 5 ô joker, $4).
+const DECKS = [
+  { id: 'red', name: 'Red Deck', vi: '+1 lượt bỏ', discards: 1 },
+  { id: 'blue', name: 'Blue Deck', vi: '+1 lượt đánh', hands: 1 },
+  { id: 'yellow', name: 'Yellow Deck', vi: '+$10 khởi đầu', money: 10 },
+  { id: 'green', name: 'Green Deck', vi: 'Tiền theo lượt thừa, không có lãi', noInterest: true },
+  { id: 'black', name: 'Black Deck', vi: '+1 ô joker, −1 lượt đánh', slots: 1, hands: -1 },
+  { id: 'magic', name: 'Magic Deck', vi: 'Crystal Ball + 2 The Fool' },
+  { id: 'nebula', name: 'Nebula Deck', vi: 'Telescope, −1 ô tiêu hao' },
+  { id: 'ghost', name: 'Ghost Deck', vi: 'Spectral trong shop, có Hex' },
+  { id: 'abandoned', name: 'Abandoned Deck', vi: 'Không có lá mặt (40 lá)', comp: 'noFace' },
+  { id: 'checkered', name: 'Checkered Deck', vi: '26 ♠ + 26 ♥', comp: 'checkered' },
+  { id: 'zodiac', name: 'Zodiac Deck', vi: 'Tarot/Planet Merchant, Overstock' },
+  { id: 'painted', name: 'Painted Deck', vi: '+2 lá trên tay, −1 ô joker', hand: 2, slots: -1 },
+  { id: 'anaglyph', name: 'Anaglyph Deck', vi: 'Double Tag sau mỗi Boss' },
+  { id: 'plasma', name: 'Plasma Deck', vi: 'Cân bằng Chip và Mult, blind ×2', plasma: true },
+  { id: 'erratic', name: 'Erratic Deck', vi: 'Số và chất ngẫu nhiên — sửa bộ bài bằng tay', comp: 'erratic' },
+];
+const DECK_BY_ID = Object.fromEntries(DECKS.map((d) => [d.id, d]));
+function deckCards(deckId) {
+  const d = DECK_BY_ID[deckId] || DECKS[0];
+  if (d.comp === 'noFace') return standardDeck().filter((c) => c.rank < 11 || c.rank === 14);
+  if (d.comp === 'checkered') {
+    const out = [];
+    for (const s of ['S', 'H']) for (const r of RANKS) for (const k of ['', 'b']) out.push(makeCard(r, s, { id: `${RANK_LABEL[r]}${s}${k}` }));
+    return out;
+  }
+  return standardDeck();
+}
+
+const cardLabel =(c) => (c.enh === 'stone' ? 'Stone' : `${RANK_LABEL[c.rank]}${SUIT_SYM[c.suit]}`);
+const isFace = (c, F) => c.enh !== 'stone' && (F.pareidolia || c.rank === 11 || c.rank === 12 || c.rank === 13);
+const chipValue = (r) => (r === 14 ? 11 : r >= 10 ? 10 : r);
+
+// ---------- Joker ----------
+// kind: flat | suit | hand | xhand | perCard | held | retrig | rule | value | econ | copy
+// value: true nếu joker có giá trị tích lũy người chơi nhập (vd Ride the Bus +12).
+const JOKERS = [
+  // +Mult / +Chip phẳng
+  { id: 'joker', name: 'Joker', vi: '+4 Mult', r: 1 },
+  { id: 'greedy', name: 'Greedy Joker', vi: '+3 Mult mỗi lá ♦ được tính', r: 1 },
+  { id: 'lusty', name: 'Lusty Joker', vi: '+3 Mult mỗi lá ♥ được tính', r: 1 },
+  { id: 'wrathful', name: 'Wrathful Joker', vi: '+3 Mult mỗi lá ♠ được tính', r: 1 },
+  { id: 'gluttonous', name: 'Gluttonous Joker', vi: '+3 Mult mỗi lá ♣ được tính', r: 1 },
+  { id: 'jolly', name: 'Jolly Joker', vi: '+8 Mult nếu có Pair', r: 1 },
+  { id: 'zany', name: 'Zany Joker', vi: '+12 Mult nếu có Three of a Kind', r: 1 },
+  { id: 'mad', name: 'Mad Joker', vi: '+10 Mult nếu có Two Pair', r: 1 },
+  { id: 'crazy', name: 'Crazy Joker', vi: '+12 Mult nếu có Straight', r: 1 },
+  { id: 'droll', name: 'Droll Joker', vi: '+10 Mult nếu có Flush', r: 1 },
+  { id: 'sly', name: 'Sly Joker', vi: '+50 Chip nếu có Pair', r: 1 },
+  { id: 'wily', name: 'Wily Joker', vi: '+100 Chip nếu có Three of a Kind', r: 1 },
+  { id: 'clever', name: 'Clever Joker', vi: '+80 Chip nếu có Two Pair', r: 1 },
+  { id: 'devious', name: 'Devious Joker', vi: '+100 Chip nếu có Straight', r: 1 },
+  { id: 'crafty', name: 'Crafty Joker', vi: '+80 Chip nếu có Flush', r: 1 },
+  { id: 'half', name: 'Half Joker', vi: '+20 Mult nếu đánh ≤3 lá', r: 1 },
+  { id: 'banner', name: 'Banner', vi: '+30 Chip mỗi lượt bỏ còn lại', r: 1 },
+  { id: 'mystic_summit', name: 'Mystic Summit', vi: '+15 Mult khi hết lượt bỏ', r: 1 },
+  { id: 'misprint', name: 'Misprint', vi: '+0–23 Mult (kỳ vọng 11,5)', r: 1 },
+  { id: 'abstract', name: 'Abstract Joker', vi: '+3 Mult mỗi joker', r: 1 },
+  { id: 'raised_fist', name: 'Raised Fist', vi: 'Mult = 2× số lá nhỏ nhất trên tay', r: 1 },
+  { id: 'fibonacci', name: 'Fibonacci', vi: '+8 Mult mỗi A,2,3,5,8 được tính', r: 2 },
+  { id: 'scary_face', name: 'Scary Face', vi: '+30 Chip mỗi lá mặt được tính', r: 1 },
+  { id: 'smiley', name: 'Smiley Face', vi: '+5 Mult mỗi lá mặt được tính', r: 1 },
+  { id: 'even_steven', name: 'Even Steven', vi: '+4 Mult mỗi lá chẵn được tính', r: 1 },
+  { id: 'odd_todd', name: 'Odd Todd', vi: '+31 Chip mỗi lá lẻ được tính', r: 1 },
+  { id: 'scholar', name: 'Scholar', vi: 'A được tính: +20 Chip +4 Mult', r: 1 },
+  { id: 'walkie_talkie', name: 'Walkie Talkie', vi: '10 hoặc 4 được tính: +10 Chip +4 Mult', r: 1 },
+  { id: 'arrowhead', name: 'Arrowhead', vi: '+50 Chip mỗi ♠ được tính', r: 2 },
+  { id: 'onyx_agate', name: 'Onyx Agate', vi: '+7 Mult mỗi ♣ được tính', r: 2 },
+  { id: 'bloodstone', name: 'Bloodstone', vi: '♥ được tính: 1/2 ×1,5 Mult', r: 2 },
+  { id: 'rough_gem', name: 'Rough Gem', vi: '♦ được tính: +$1', r: 2 },
+  { id: 'gros_michel', name: 'Gros Michel', vi: '+15 Mult', r: 1 },
+  { id: 'bull', name: 'Bull', vi: '+2 Chip mỗi $1', r: 2 },
+  { id: 'bootstraps', name: 'Bootstraps', vi: '+2 Mult mỗi $5', r: 2 },
+  { id: 'blue_joker', name: 'Blue Joker', vi: '+2 Chip mỗi lá còn trong bộ', r: 1 },
+  { id: 'erosion', name: 'Erosion', vi: '+4 Mult mỗi lá thiếu so với 52', r: 2 },
+  { id: 'stone_joker', name: 'Stone Joker', vi: '+25 Chip mỗi Stone trong bộ', r: 2 },
+  { id: 'shoot_the_moon', name: 'Shoot the Moon', vi: '+13 Mult mỗi Q trên tay', r: 1 },
+  { id: 'supernova', name: 'Supernova', vi: '+Mult = số lần đã đánh loại tay này', r: 1, value: 'lanDanh' },
+  // ×Mult
+  { id: 'cavendish', name: 'Cavendish', vi: '×3 Mult', r: 1 },
+  { id: 'duo', name: 'The Duo', vi: '×2 nếu có Pair', r: 3 },
+  { id: 'trio', name: 'The Trio', vi: '×3 nếu có Three of a Kind', r: 3 },
+  { id: 'family', name: 'The Family', vi: '×4 nếu có Four of a Kind', r: 3 },
+  { id: 'order', name: 'The Order', vi: '×3 nếu có Straight', r: 3 },
+  { id: 'tribe', name: 'The Tribe', vi: '×2 nếu có Flush', r: 3 },
+  { id: 'stencil', name: 'Joker Stencil', vi: '×1 mỗi ô joker trống', r: 2 },
+  { id: 'card_sharp', name: 'Card Sharp', vi: '×3 nếu loại tay đã đánh vòng này', r: 2 },
+  { id: 'blackboard', name: 'Blackboard', vi: '×3 nếu mọi lá trên tay là ♠/♣', r: 2 },
+  { id: 'flower_pot', name: 'Flower Pot', vi: '×3 nếu tính đủ 4 chất', r: 2 },
+  { id: 'seeing_double', name: 'Seeing Double', vi: '×2 nếu có ♣ và chất khác', r: 2 },
+  { id: 'acrobat', name: 'Acrobat', vi: '×3 ở lượt đánh cuối', r: 2 },
+  { id: 'baron', name: 'Baron', vi: '×1,5 mỗi K trên tay', r: 3 },
+  { id: 'photograph', name: 'Photograph', vi: 'Lá mặt đầu tiên được tính ×2', r: 1 },
+  { id: 'triboulet', name: 'Triboulet', vi: 'K, Q được tính ×2', r: 4 },
+  { id: 'steel_joker', name: 'Steel Joker', vi: '×0,2 mỗi Steel trong bộ', r: 2 },
+  { id: 'drivers_license', name: "Driver's License", vi: '×3 nếu ≥16 lá có enhancement', r: 3 },
+  { id: 'ancient', name: 'Ancient Joker', vi: '×1,5 mỗi lá đúng chất được tính', r: 3, value: 'chat' },
+  { id: 'idol', name: 'The Idol', vi: '×2 mỗi lá đúng số+chất được tính', r: 2, value: 'la' },
+  { id: 'loyalty_card', name: 'Loyalty Card', vi: '×4 mỗi 6 lượt đánh', r: 2, value: 'kichHoat' },
+  // Tích lũy — nhập giá trị hiện tại
+  ...[
+    ['ride_the_bus', 'Ride the Bus', 'mult'], ['green_joker', 'Green Joker', 'mult'], ['spare_trousers', 'Spare Trousers', 'mult'],
+    ['flash', 'Flash Card', 'mult'], ['red_card', 'Red Card', 'mult'], ['fortune_teller', 'Fortune Teller', 'mult'],
+    ['swashbuckler', 'Swashbuckler', 'mult'], ['popcorn', 'Popcorn', 'mult'], ['ceremonial', 'Ceremonial Dagger', 'mult'],
+    ['runner', 'Runner', 'chips'], ['square', 'Square Joker', 'chips'], ['ice_cream', 'Ice Cream', 'chips'],
+    ['castle', 'Castle', 'chips'], ['wee', 'Wee Joker', 'chips'], ['stuntman', 'Stuntman', 'chips'],
+    ['hologram', 'Hologram', 'x'], ['constellation', 'Constellation', 'x'], ['lucky_cat', 'Lucky Cat', 'x'],
+    ['vampire', 'Vampire', 'x'], ['campfire', 'Campfire', 'x'], ['madness', 'Madness', 'x'], ['glass_joker', 'Glass Joker', 'x'],
+    ['throwback', 'Throwback', 'x'], ['hit_the_road', 'Hit the Road', 'x'], ['obelisk', 'Obelisk', 'x'],
+    ['canio', 'Canio', 'x'], ['yorick', 'Yorick', 'x'], ['ramen', 'Ramen', 'x'], ['caino', 'Caino', 'x'],
+  ].map(([id, name, t]) => ({ id, name, vi: t === 'x' ? 'Nhập ×Mult hiện tại' : t === 'chips' ? 'Nhập +Chip hiện tại' : 'Nhập +Mult hiện tại', r: 1, value: t })),
+  // Retrigger
+  { id: 'hack', name: 'Hack', vi: 'Retrigger 2,3,4,5', r: 2 },
+  { id: 'sock_and_buskin', name: 'Sock and Buskin', vi: 'Retrigger lá mặt', r: 2 },
+  { id: 'hanging_chad', name: 'Hanging Chad', vi: 'Retrigger lá tính đầu tiên 2 lần', r: 1 },
+  { id: 'dusk', name: 'Dusk', vi: 'Retrigger mọi lá ở lượt cuối', r: 2 },
+  { id: 'seltzer', name: 'Seltzer', vi: 'Retrigger mọi lá (10 lượt)', r: 2 },
+  { id: 'mime', name: 'Mime', vi: 'Retrigger hiệu ứng lá trên tay', r: 2 },
+  // Bẻ luật
+  { id: 'four_fingers', name: 'Four Fingers', vi: 'Flush/Straight 4 lá', r: 2 },
+  { id: 'shortcut', name: 'Shortcut', vi: 'Straight cách 1 bậc', r: 2 },
+  { id: 'smeared', name: 'Smeared Joker', vi: '♥=♦, ♠=♣', r: 2 },
+  { id: 'pareidolia', name: 'Pareidolia', vi: 'Mọi lá là lá mặt', r: 2 },
+  { id: 'splash', name: 'Splash', vi: 'Mọi lá đánh đều được tính', r: 1 },
+  // Sao chép
+  { id: 'blueprint', name: 'Blueprint', vi: 'Sao chép joker bên phải', r: 3 },
+  { id: 'brainstorm', name: 'Brainstorm', vi: 'Sao chép joker ngoài cùng trái', r: 3 },
+  // Joker tự nhập
+  { id: 'custom', name: 'Joker khác (tự nhập)', vi: 'Nhập +Chip / +Mult / ×Mult', r: 1, value: 'custom' },
+  { id: 'passive', name: 'Joker không cộng điểm', vi: 'Kinh tế/tiện ích — chỉ chiếm ô', r: 1 },
+];
+const JOKER_BY_ID = Object.fromEntries(JOKERS.map((j) => [j.id, j]));
+const RETRIG = new Set(['hack', 'sock_and_buskin', 'hanging_chad', 'dusk', 'seltzer', 'mime']);
+const RULES = ['four_fingers', 'shortcut', 'smeared', 'pareidolia', 'splash'];
+
+// Joker hiệu lực sau khi Blueprint/Brainstorm sao chép.
+function resolveJokers(jokers) {
+  const out = [];
+  const target = (i, seen) => {
+    const j = jokers[i];
+    if (!j || j.disabled) return null;
+    if (j.id !== 'blueprint' && j.id !== 'brainstorm') return j;
+    if (seen.has(i)) return null;
+    seen.add(i);
+    return j.id === 'blueprint' ? target(i + 1, seen) : target(0, seen);
+  };
+  jokers.forEach((j, i) => {
+    if (j.disabled) { out.push({ src: j, eff: null }); return; }
+    let eff = j;
+    if (j.id === 'blueprint' || j.id === 'brainstorm') {
+      const t = target(i, new Set());
+      eff = t && !RULES.includes(t.id) ? t : null; // bản sao không chép luật
+    }
+    out.push({ src: j, eff });
+  });
+  return out;
+}
+function ruleFlags(jokers) {
+  const F = {};
+  for (const j of jokers) if (!j.disabled && RULES.includes(j.id)) F[j.id] = true;
+  return F;
+}
+
+// ---------- Nhận diện tay ----------
+function effSuits(c, F) {
+  if (c.enh === 'stone') return [];
+  if (c.enh === 'wild') return SUITS;
+  if (F.smeared) return c.suit === 'H' || c.suit === 'D' ? ['H', 'D'] : ['S', 'C'];
+  return [c.suit];
+}
+function findFlush(cards, F) {
+  const need = F.four_fingers ? 4 : 5;
+  if (cards.length < need) return null;
+  for (const s of SUITS) {
+    const m = cards.filter((c) => effSuits(c, F).includes(s));
+    if (m.length >= need) return m;
+  }
+  return null;
+}
+function findStraight(cards, F) {
+  const need = F.four_fingers ? 4 : 5;
+  const real = cards.filter((c) => c.enh !== 'stone');
+  if (real.length < need) return null;
+  const present = new Set();
+  for (const c of real) { present.add(c.rank); if (c.rank === 14) present.add(1); }
+  // tìm chuỗi dài nhất (cho phép cách 1 bậc với Shortcut)
+  let best = null;
+  for (let start = 1; start <= 14; start++) {
+    if (!present.has(start)) continue;
+    const seq = [start];
+    let cur = start;
+    while (true) {
+      if (present.has(cur + 1)) cur = cur + 1;
+      else if (F.shortcut && present.has(cur + 2)) cur = cur + 2;
+      else break;
+      seq.push(cur);
+    }
+    if (seq.length >= need && (!best || seq.length > best.length)) best = seq;
+  }
+  if (!best) return null;
+  const ranks = new Set(best.map((r) => (r === 1 ? 14 : r)));
+  return real.filter((c) => ranks.has(c.rank));
+}
+function detectHand(cards, F = {}) {
+  const real = cards.filter((c) => c.enh !== 'stone');
+  const groups = {};
+  for (const c of real) (groups[c.rank] ||= []).push(c);
+  const gs = Object.values(groups).sort((a, b) => b.length - a.length || b[0].rank - a[0].rank);
+  const flush = findFlush(cards, F);
+  const straight = findStraight(cards, F);
+  const n0 = gs[0]?.length || 0, n1 = gs[1]?.length || 0;
+  const contains = {
+    pair: n0 >= 2, three: n0 >= 3, four: n0 >= 4, twoPair: n0 >= 2 && n1 >= 2 || n0 >= 4,
+    straight: !!straight, flush: !!flush,
+  };
+  let type, scoring;
+  if (n0 >= 5 && flush) { type = 'Flush Five'; scoring = gs[0]; }
+  else if (n0 >= 3 && n1 >= 2 && flush) { type = 'Flush House'; scoring = [...gs[0], ...gs[1]]; }
+  else if (n0 >= 5) { type = 'Five of a Kind'; scoring = gs[0]; }
+  else if (straight && flush) { type = 'Straight Flush'; scoring = [...new Set([...straight, ...flush])]; }
+  else if (n0 >= 4) { type = 'Four of a Kind'; scoring = gs[0]; }
+  else if (n0 >= 3 && n1 >= 2) { type = 'Full House'; scoring = [...gs[0], ...gs[1]]; }
+  else if (flush) { type = 'Flush'; scoring = flush; }
+  else if (straight) { type = 'Straight'; scoring = straight; }
+  else if (n0 >= 3) { type = 'Three of a Kind'; scoring = gs[0]; }
+  else if (n0 >= 2 && n1 >= 2) { type = 'Two Pair'; scoring = [...gs[0], ...gs[1]]; }
+  else if (n0 >= 2) { type = 'Pair'; scoring = gs[0]; }
+  else {
+    type = 'High Card';
+    scoring = real.length ? [real.reduce((a, b) => (b.rank > a.rank ? b : a))] : [];
+  }
+  if (contains.four) contains.three = true;
+  const set = new Set(scoring);
+  for (const c of cards) if (c.enh === 'stone' || F.splash) set.add(c);
+  // giữ thứ tự trái → phải như lúc đánh
+  const ordered = cards.filter((c) => set.has(c));
+  return { type, scoring: ordered, contains };
+}
+
+// ---------- Tính điểm ----------
+// ctx: { held, jokers, levels, handsLeft (kể cả lượt này), discardsLeft, money, jokerSlots,
+//        deckRemaining, fullDeck, playedTypes:Set, boss:{flint, debuffSuit, debuffFace}, oops }
+function scorePlay(played, ctx) {
+  const jokers = ctx.jokers || [];
+  const F = ruleFlags(jokers);
+  const res = detectHand(played, F);
+  const lvl = (ctx.levels && ctx.levels[res.type]) || 1;
+  const hi = HAND_INFO[res.type];
+  let chips = hi.chips + hi.dc * (lvl - 1);
+  let mult = hi.mult + hi.dm * (lvl - 1);
+  if (ctx.boss?.flint) { chips = Math.max(0, Math.round(chips / 2)); mult = Math.max(1, Math.round(mult / 2)); }
+  let money = 0;
+  const odds = ctx.oops ? 2 : 1;
+  const resolved = resolveJokers(jokers);
+  const effs = resolved.map((r) => r.eff).filter(Boolean);
+  const has = (id) => effs.filter((j) => j.id === id).length;
+  const isLast = (ctx.handsLeft || 1) <= 1;
+  const debuffed = (c) => c.debuffed || (ctx.boss?.debuffSuit && c.enh !== 'stone' && c.enh !== 'wild' && c.suit === ctx.boss.debuffSuit) || (ctx.boss?.debuffFace && isFace(c, F));
+
+  // 1) Lá được tính
+  let firstFaceDone = false;
+  res.scoring.forEach((c, idx) => {
+    if (debuffed(c)) return;
+    let reps = 1;
+    if (c.seal === 'red') reps++;
+    reps += has('hack') * (c.rank >= 2 && c.rank <= 5 && c.enh !== 'stone' ? 1 : 0);
+    reps += has('sock_and_buskin') * (isFace(c, F) ? 1 : 0);
+    reps += has('hanging_chad') * (idx === 0 ? 2 : 0);
+    reps += has('dusk') * (isLast ? 1 : 0);
+    reps += has('seltzer');
+    for (let r = 0; r < reps; r++) {
+      // chip/mult của lá
+      chips += (c.enh === 'stone' ? 50 : chipValue(c.rank)) + (c.enh === 'bonus' ? 30 : 0) + (c.bonusChips || 0);
+      if (c.enh === 'mult') mult += 4;
+      if (c.enh === 'lucky') { mult += 20 * Math.min(1, odds / 5); money += 20 * Math.min(1, odds / 15); }
+      if (c.enh === 'glass') mult *= 2;
+      if (c.seal === 'gold') money += 3;
+      if (c.ed === 'foil') chips += 50;
+      if (c.ed === 'holo') mult += 10;
+      if (c.ed === 'poly') mult *= 1.5;
+      // joker "khi lá được tính"
+      for (const j of effs) {
+        const suits = effSuits(c, F);
+        const face = isFace(c, F);
+        switch (j.id) {
+          case 'greedy': if (suits.includes('D')) mult += 3; break;
+          case 'lusty': if (suits.includes('H')) mult += 3; break;
+          case 'wrathful': if (suits.includes('S')) mult += 3; break;
+          case 'gluttonous': if (suits.includes('C')) mult += 3; break;
+          case 'fibonacci': if ([14, 2, 3, 5, 8].includes(c.rank) && c.enh !== 'stone') mult += 8; break;
+          case 'scary_face': if (face) chips += 30; break;
+          case 'smiley': if (face) mult += 5; break;
+          case 'even_steven': if (c.enh !== 'stone' && c.rank <= 10 && c.rank % 2 === 0) mult += 4; break;
+          case 'odd_todd': if (c.enh !== 'stone' && (c.rank === 14 || (c.rank <= 9 && c.rank % 2 === 1))) chips += 31; break;
+          case 'scholar': if (c.rank === 14 && c.enh !== 'stone') { chips += 20; mult += 4; } break;
+          case 'walkie_talkie': if ((c.rank === 10 || c.rank === 4) && c.enh !== 'stone') { chips += 10; mult += 4; } break;
+          case 'arrowhead': if (suits.includes('S')) chips += 50; break;
+          case 'onyx_agate': if (suits.includes('C')) mult += 7; break;
+          case 'bloodstone': if (suits.includes('H')) mult *= 1 + 0.5 * Math.min(1, odds / 2); break;
+          case 'rough_gem': if (suits.includes('D')) money += 1; break;
+          case 'photograph': if (face && !firstFaceDone) mult *= 2; break;
+          case 'triboulet': if ((c.rank === 12 || c.rank === 13) && c.enh !== 'stone') mult *= 2; break;
+          case 'ancient': if (suits.includes(j.suit || 'H')) mult *= 1.5; break;
+          case 'idol': if (c.enh !== 'stone' && c.rank === (j.rank || 14) && suits.includes(j.suit || 'S')) mult *= 2; break;
+        }
+      }
+    }
+    if (isFace(c, F)) firstFaceDone = true;
+  });
+
+  // 2) Lá trên tay
+  const held = ctx.held || [];
+  held.forEach((c) => {
+    if (debuffed(c)) return;
+    let reps = 1 + (c.seal === 'red' ? 1 : 0) + has('mime');
+    for (let r = 0; r < reps; r++) {
+      if (c.enh === 'steel') mult *= 1.5;
+      for (const j of effs) {
+        if (j.id === 'baron' && c.rank === 13 && c.enh !== 'stone') mult *= 1.5;
+        if (j.id === 'shoot_the_moon' && c.rank === 12 && c.enh !== 'stone') mult += 13;
+      }
+    }
+  });
+  if (has('raised_fist')) {
+    const rs = held.filter((c) => c.enh !== 'stone' && !debuffed(c));
+    if (rs.length) {
+      const low = rs.reduce((a, b) => (b.rank < a.rank ? b : a));
+      const reps = 1 + (low.seal === 'red' ? 1 : 0) + has('mime');
+      mult += has('raised_fist') * 2 * chipValue(low.rank) * reps;
+    }
+  }
+
+  // 3) Joker, trái → phải
+  const C = res.contains;
+  const nJokers = jokers.length;
+  const slots = ctx.jokerSlots || 5;
+  const fullDeck = ctx.fullDeck || [];
+  const playedTypes = ctx.playedTypes || new Set();
+  for (const { src, eff: j } of resolved) {
+    if (src.disabled) continue;
+    if (src.ed === 'foil') chips += 50;
+    if (src.ed === 'holo') mult += 10;
+    if (j) {
+      const v = Number(j.v) || 0;
+      switch (j.id) {
+        case 'joker': mult += 4; break;
+        case 'jolly': if (C.pair) mult += 8; break;
+        case 'zany': if (C.three) mult += 12; break;
+        case 'mad': if (C.twoPair) mult += 10; break;
+        case 'crazy': if (C.straight) mult += 12; break;
+        case 'droll': if (C.flush) mult += 10; break;
+        case 'sly': if (C.pair) chips += 50; break;
+        case 'wily': if (C.three) chips += 100; break;
+        case 'clever': if (C.twoPair) chips += 80; break;
+        case 'devious': if (C.straight) chips += 100; break;
+        case 'crafty': if (C.flush) chips += 80; break;
+        case 'half': if (played.length <= 3) mult += 20; break;
+        case 'banner': chips += 30 * (ctx.discardsLeft || 0); break;
+        case 'mystic_summit': if ((ctx.discardsLeft || 0) === 0) mult += 15; break;
+        case 'misprint': mult += 11.5; break;
+        case 'abstract': mult += 3 * nJokers; break;
+        case 'gros_michel': mult += 15; break;
+        case 'bull': chips += 2 * Math.max(0, ctx.money || 0); break;
+        case 'bootstraps': mult += 2 * Math.floor(Math.max(0, ctx.money || 0) / 5); break;
+        case 'blue_joker': chips += 2 * (ctx.deckRemaining?.length || 0); break;
+        case 'erosion': mult += 4 * Math.max(0, 52 - (fullDeck.length || 52)); break;
+        case 'stone_joker': chips += 25 * fullDeck.filter((c) => c.enh === 'stone').length; break;
+        case 'supernova': mult += v; break;
+        case 'cavendish': mult *= 3; break;
+        case 'duo': if (C.pair) mult *= 2; break;
+        case 'trio': if (C.three) mult *= 3; break;
+        case 'family': if (C.four) mult *= 4; break;
+        case 'order': if (C.straight) mult *= 3; break;
+        case 'tribe': if (C.flush) mult *= 2; break;
+        case 'stencil': mult *= Math.max(1, slots - nJokers + jokers.filter((x) => x.id === 'stencil').length); break;
+        case 'card_sharp': if (playedTypes.has(res.type)) mult *= 3; break;
+        case 'blackboard': if (held.every((c) => c.enh !== 'stone' && effSuits(c, F).some((s) => s === 'S' || s === 'C'))) mult *= 3; break;
+        case 'flower_pot': {
+          const ss = new Set(); res.scoring.forEach((c) => effSuits(c, F).forEach((s) => ss.add(s)));
+          if (ss.size >= 4) mult *= 3; break;
+        }
+        case 'seeing_double': {
+          const sc = res.scoring.filter((c) => c.enh !== 'stone');
+          const club = sc.some((c) => effSuits(c, F).includes('C'));
+          const other = sc.some((c) => effSuits(c, F).some((s) => s !== 'C'));
+          if (club && other && sc.length >= 2) mult *= 2; break;
+        }
+        case 'acrobat': if (isLast) mult *= 3; break;
+        case 'steel_joker': mult *= 1 + 0.2 * fullDeck.filter((c) => c.enh === 'steel').length; break;
+        case 'drivers_license': if (fullDeck.filter((c) => c.enh).length >= 16) mult *= 3; break;
+        case 'loyalty_card': if (v) mult *= 4; break;
+        case 'custom': chips += Number(j.chips) || 0; mult += Number(j.mult) || 0; if (Number(j.x)) mult *= Number(j.x); break;
+        default:
+          if (j.value === 'mult' || JOKER_BY_ID[j.id]?.value === 'mult') mult += v;
+          else if (JOKER_BY_ID[j.id]?.value === 'chips') chips += v;
+          else if (JOKER_BY_ID[j.id]?.value === 'x') { if (v) mult *= v; }
+      }
+    }
+    if (src.ed === 'poly') mult *= 1.5;
+  }
+  if (ctx.plasma) { const avg = (chips + mult) / 2; chips = avg; mult = avg; } // Plasma Deck
+  const score = Math.floor(chips * mult);
+  return { type: res.type, scoringIds: res.scoring.map((c) => c.id), chips: Math.round(chips), mult: Math.round(mult * 100) / 100, score, money };
+}
+
+// ---------- Tìm nước ----------
+function* subsets(arr, maxK) {
+  const n = arr.length;
+  for (let mask = 1; mask < 1 << n; mask++) {
+    let k = 0; for (let m = mask; m; m &= m - 1) k++;
+    if (k > maxK) continue;
+    const pick = [], rest = [];
+    for (let i = 0; i < n; i++) (mask & (1 << i) ? pick : rest).push(arr[i]);
+    yield [pick, rest];
+  }
+}
+function bestPlay(hand, ctx, opts = {}) {
+  const must5 = ctx.boss?.psychic;
+  let best = null;
+  const all = [];
+  for (const [pick, rest] of subsets(hand, 5)) {
+    if (must5 && pick.length < Math.min(5, hand.length)) continue;
+    const r = scorePlay(pick, { ...ctx, held: rest });
+    // ưu tiên điểm cao, cùng điểm thì ít lá hơn (giữ lá cho sau)
+    const cand = { ...r, cards: pick.map((c) => c.id) };
+    if (opts.all) all.push(cand);
+    if (!best || r.score > best.score || (r.score === best.score && pick.length < best.cards.length)) best = cand;
+  }
+  if (opts.all) { all.sort((a, b) => b.score - a.score); return { best, all }; }
+  return best;
+}
+// Nhanh hơn cho Monte Carlo: chỉ cần điểm tốt nhất.
+function bestScore(hand, ctx) {
+  let best = 0;
+  for (const [pick, rest] of subsets(hand, 5)) {
+    const s = scorePlay(pick, { ...ctx, held: rest }).score;
+    if (s > best) best = s;
+  }
+  return best;
+}
+
+// RNG có seed để kết quả ổn định giữa các lần bấm
+function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function sample(arr, k, rand) {
+  const a = arr.slice(); const out = [];
+  for (let i = 0; i < k && a.length; i++) { const j = Math.floor(rand() * a.length); out.push(a[j]); a[j] = a[a.length - 1]; a.pop(); }
+  return out;
+}
+
+// Ứng viên bỏ bài: giữ một "lõi" (cùng chất, cùng số, chuỗi, tay tốt nhất…), bỏ phần còn lại (≤5 lá).
+function discardCandidates(hand, ctx, top) {
+  const F = ruleFlags(ctx.jokers || []);
+  const keeps = new Map();
+  const add = (keep) => {
+    const ids = new Set(keep.map((c) => c.id));
+    const disc = hand.filter((c) => !ids.has(c.id));
+    if (!disc.length) return;
+    // quá 5 lá: bỏ 5 lá ít giá trị nhất (số nhỏ, không cải biến)
+    const sorted = disc.slice().sort((a, b) => (a.enh || a.ed || a.seal ? 1 : 0) - (b.enh || b.ed || b.seal ? 1 : 0) || a.rank - b.rank);
+    const d = sorted.slice(0, 5);
+    const key = d.map((c) => c.id).sort().join(',');
+    if (!keeps.has(key)) keeps.set(key, d);
+  };
+  for (const s of SUITS) { const k = hand.filter((c) => effSuits(c, F).includes(s)); if (k.length >= 2) add(k); }
+  const groups = {};
+  hand.forEach((c) => { if (c.enh !== 'stone') (groups[c.rank] ||= []).push(c); });
+  const multi = Object.values(groups).filter((g) => g.length >= 2);
+  multi.forEach((g) => add(g));
+  if (multi.length >= 2) add(multi.flat());
+  // chuỗi: cửa sổ 5 bậc
+  for (let lo = 1; lo <= 10; lo++) {
+    const win = hand.filter((c) => c.enh !== 'stone' && ((c.rank >= lo && c.rank <= lo + 4) || (lo === 1 && c.rank === 14)));
+    const uniq = []; const seen = new Set();
+    win.forEach((c) => { const r = c.rank === 14 && lo === 1 ? 1 : c.rank; if (!seen.has(r)) { seen.add(r); uniq.push(c); } });
+    if (uniq.length >= 3) add(uniq);
+  }
+  top.slice(0, 6).forEach((p) => add(hand.filter((c) => p.cards.includes(c.id))));
+  // lá mặt / lá cao
+  add(hand.filter((c) => isFace(c, F) || c.rank === 14));
+  // bỏ từng lá đơn lẻ nhỏ nhất
+  const byRank = hand.slice().sort((a, b) => a.rank - b.rank);
+  for (let k = 1; k <= Math.min(5, hand.length - 1); k++) add(byRank.slice(k));
+  return [...keeps.values()];
+}
+
+// Lời khuyên cho một lượt.
+// state: { hand, deckRemaining, need (điểm còn thiếu), handsLeft, discardsLeft, handSize, ...ctx }
+function advise(state, opts = {}) {
+  const t0 = Date.now();
+  const ctx = { ...state };
+  const hand = state.hand;
+  const { best, all } = bestPlay(hand, ctx, { all: true });
+  const need = Math.max(0, state.need);
+  const H = state.handsLeft, D = state.discardsLeft;
+  // phương án khác: mỗi loại tay một dòng, khác tay tốt nhất
+  const seenT = new Set([best?.type]);
+  const alts = all.filter((x) => (seenT.has(x.type) ? false : (seenT.add(x.type), true))).slice(0, 3);
+  const out = { play: best, alternatives: alts, need, ms: 0 };
+  if (!best) return { action: 'none', ...out };
+  if (best.score >= need || D <= 0 || !state.deckRemaining?.length) {
+    out.action = 'play';
+    out.reason = best.score >= need ? 'Đủ điểm qua blind ngay lượt này.' : D <= 0 ? 'Hết lượt bỏ — đánh tay mạnh nhất.' : 'Bộ bài đã hết lá để rút.';
+    out.ms = Date.now() - t0;
+    return out;
+  }
+  // Monte Carlo cho các phương án bỏ bài
+  const rand = rng(opts.seed || 12345);
+  const samples = opts.samples || 120;
+  const cands = discardCandidates(hand, ctx, all);
+  const target = H <= 1 ? need : need / H; // mục tiêu mỗi lượt
+  const simulate = (disc, n) => {
+    const ids = new Set(disc.map((c) => c.id));
+    const keep = hand.filter((c) => !ids.has(c.id));
+    const drawN = Math.min(disc.length, state.deckRemaining.length);
+    let hit = 0, sum = 0, hitAll = 0;
+    for (let i = 0; i < n; i++) {
+      const drawn = sample(state.deckRemaining, drawN, rand);
+      const s = bestScore([...keep, ...drawn], { ...ctx, discardsLeft: D - 1 });
+      sum += Math.min(s, need);
+      if (s >= target) hit++;
+      if (s >= need) hitAll++;
+    }
+    return { discard: disc.map((c) => c.id), cards: disc, pTarget: hit / n, pClear: hitAll / n, avg: sum / n };
+  };
+  // Vòng 1: lọc nhanh; vòng 2: tính kỹ 3 phương án dẫn đầu
+  const quick = cands.map((d) => simulate(d, Math.max(30, Math.round(samples / 3))));
+  const pre = (e) => e.pClear + 0.5 * Math.min(1, e.avg / need) + 0.3 * e.pTarget;
+  quick.sort((a, b) => pre(b) - pre(a));
+  const evals = quick.slice(0, 3).map((e) => simulate(e.cards, samples * 3));
+  // Giá trị một phương án = khả năng xong blind ngay tay này + tiến độ kỳ vọng (+ đạt mục tiêu mỗi lượt khi còn nhiều tay).
+  // Bỏ bài tốn một lượt bỏ: phạt nhẹ, nặng hơn khi còn ít lượt bỏ.
+  const wT = H <= 1 ? 0 : 0.3;
+  const value = (pClear, avg, pT) => pClear + 0.5 * Math.min(1, avg / need) + wT * pT;
+  const penalty = 0.12 / Math.max(1, D);
+  evals.forEach((e) => (e.value = value(e.pClear, e.avg, e.pTarget) - penalty));
+  evals.sort((a, b) => b.value - a.value);
+  const bestD = evals[0];
+  const playNowHit = best.score >= target ? 1 : 0;
+  const playValue = value(best.score >= need ? 1 : 0, Math.min(best.score, need), playNowHit);
+  out.discardOptions = evals.slice(0, 3);
+  if (bestD && bestD.value > playValue + 0.03) {
+    out.action = 'discard';
+    out.discard = bestD;
+    out.reason = bestD.pClear >= 0.25
+      ? `Bỏ để săn tay đủ điểm luôn: ${Math.round(bestD.pClear * 100)}% xong blind ngay lượt sau.`
+      : `Bỏ để tìm tay mạnh hơn: ${Math.round(bestD.pTarget * 100)}% đạt mục tiêu mỗi lượt (${fmt(Math.round(target))}).`;
+  } else {
+    out.action = 'play';
+    out.reason = playNowHit ? `Tay này đạt mục tiêu mỗi lượt (${fmt(Math.round(target))}).` : 'Bỏ bài không cải thiện đáng kể — đánh tay mạnh nhất.';
+  }
+  out.ms = Date.now() - t0;
+  return out;
+}
+
+// ---------- Xếp joker ----------
+function* permutations(a) {
+  if (a.length <= 1) { yield a.slice(); return; }
+  for (let i = 0; i < a.length; i++) {
+    const rest = a.slice(0, i).concat(a.slice(i + 1));
+    for (const p of permutations(rest)) yield [a[i], ...p];
+  }
+}
+// Đánh giá thứ tự joker trên: tay hiện tại + các tay mẫu rút từ bộ bài đầy đủ.
+function bestJokerOrder(state, opts = {}) {
+  const jokers = state.jokers || [];
+  if (jokers.length < 2) return { order: jokers, gain: 0 };
+  const rand = rng(opts.seed || 777);
+  const pool = state.fullDeck?.length ? state.fullDeck : standardDeck();
+  const hs = state.handSize || 8;
+  const plays = [];
+  const add = (hand) => { const b = bestPlay(hand, state); if (b) plays.push({ cards: hand.filter((c) => b.cards.includes(c.id)), held: hand.filter((c) => !b.cards.includes(c.id)) }); };
+  if (state.hand?.length) add(state.hand);
+  for (let i = 0; i < (opts.samples || 25); i++) add(sample(pool, hs, rand));
+  const evalOrder = (order) => plays.reduce((s, p, i) => s + Math.log(1 + scorePlay(p.cards, { ...state, jokers: order, held: p.held }).score) * (i === 0 && state.hand?.length ? 3 : 1), 0);
+  const base = evalOrder(jokers);
+  let best = { order: jokers, v: base };
+  if (jokers.length <= 6) for (const p of permutations(jokers)) { const v = evalOrder(p); if (v > best.v + 1e-9) best = { order: p, v }; }
+  const changed = best.order.some((j, i) => j !== jokers[i]);
+  // ước lượng % tăng điểm trên tay hiện tại
+  let gain = 0;
+  if (changed && state.hand?.length) {
+    const a = bestPlay(state.hand, state)?.score || 0;
+    const b = bestPlay(state.hand, { ...state, jokers: best.order })?.score || 0;
+    gain = a ? b / a - 1 : 0;
+  }
+  return { order: best.order, changed, gain };
+}
+
+// ---------- Sức điểm & shop ----------
+// Sức điểm = trung bình hình học điểm tay tốt nhất trên các bàn tay mẫu.
+function power(state, opts = {}) {
+  const rand = rng(opts.seed || 999);
+  const pool = state.fullDeck?.length ? state.fullDeck : standardDeck();
+  const hs = state.handSize || 8;
+  const n = opts.samples || 40;
+  let logSum = 0;
+  for (let i = 0; i < n; i++) {
+    const h = sample(pool, hs, rand);
+    const b = bestScore(h, { ...state, handsLeft: 2, discardsLeft: state.discards ?? 3, money: state.money, deckRemaining: pool });
+    logSum += Math.log(1 + b);
+  }
+  return Math.exp(logSum / n) - 1;
+}
+function weakestJokerIndex(state) {
+  let worst = -1, worstP = Infinity;
+  state.jokers.forEach((j, i) => {
+    if (j.eternal) return;
+    const p = power({ ...state, jokers: state.jokers.filter((_, k) => k !== i) }, { samples: 20 });
+    if (p < worstP) { worstP = p; worst = i; }
+  });
+  return worst;
+}
+// offers: [{kind:'joker', joker:{id,ed,v,...}, price} | {kind:'planet', hand, price} | {kind:'other', name, price}]
+function adviseShop(state, offers, opts = {}) {
+  const base = power(state, opts);
+  const slots = state.jokerSlots || 5;
+  const money = state.money || 0;
+  const interestCap = state.interestCap || 25;
+  const res = offers.map((o) => {
+    let after = base, note = '';
+    if (o.kind === 'joker') {
+      let js = [...state.jokers];
+      const neg = o.joker.ed === 'neg';
+      if (!neg && js.length >= slots) {
+        const w = weakestJokerIndex(state);
+        if (w < 0) return { ...o, gain: 0, note: 'Hết ô, không có joker để bán' };
+        note = `thay ${JOKER_BY_ID[js[w].id]?.name || js[w].id}`;
+        js.splice(w, 1);
+      }
+      js.push({ ...o.joker, ed: neg ? null : o.joker.ed });
+      const order = bestJokerOrder({ ...state, jokers: js }, { samples: 12 }).order;
+      after = power({ ...state, jokers: order, jokerSlots: slots + (neg ? 1 : 0) }, opts);
+    } else if (o.kind === 'planet') {
+      const levels = { ...(state.levels || {}) };
+      levels[o.hand] = (levels[o.hand] || 1) + 1;
+      after = power({ ...state, levels }, opts);
+    } else {
+      return { ...o, gain: null, note: 'Không mô phỏng được — tự cân nhắc' };
+    }
+    const gain = base ? after / base - 1 : 0;
+    // mất lãi nếu tiền tụt qua mốc $5
+    const lostInterest = Math.max(0, Math.floor(Math.min(money, interestCap) / 5) - Math.floor(Math.min(Math.max(0, money - o.price), interestCap) / 5));
+    return { ...o, gain, after, note, lostInterest, afford: o.price <= money };
+  });
+  res.sort((a, b) => (b.gain ?? -1) - (a.gain ?? -1));
+  return { base, items: res };
+}
+
+// Nên skip blind không? needNext = điểm của blind kế tiếp sẽ phải đánh.
+const GOOD_TAGS = {
+  Negative: 5, Rare: 4, Uncommon: 3, Polychrome: 3, Holographic: 2, Foil: 2, Investment: 4, Economy: 3, Double: 3,
+  Voucher: 3, Charm: 2, Meteor: 2, Ethereal: 2, Buffoon: 2, Coupon: 2, D6: 1, Juggle: 1, Garbage: 1, Handy: 2,
+  Skip: 1, Speed: 2, 'Top-up': 1, Orbital: 3, Boss: 1, Standard: 1,
+};
+function adviseSkip(state, blindIdx, tag) {
+  const p = power(state, { samples: 30 });
+  const hands = state.hands ?? 4;
+  const cap = p * hands * 0.75; // ước lượng điểm cả vòng (không phải tay nào cũng tốt nhất)
+  const nextReq = blindTarget(state.stakeIdx || 0, state.ante || 1, blindIdx + 1, 2);
+  const bossReq = blindTarget(state.stakeIdx || 0, state.ante || 1, 2, 2);
+  const tagV = GOOD_TAGS[tag] ?? 1;
+  const margin = cap / Math.max(nextReq, bossReq);
+  let skip = blindIdx < 2 && margin >= 1.3 && tagV >= 2;
+  if (blindIdx < 2 && margin >= 2 && tagV >= 1) skip = true;
+  return { skip, power: p, roundCap: cap, nextReq, bossReq, margin, tagValue: tagV };
+}
+
+const fmt = (n) => (n == null ? '—' : n >= 1e9 ? n.toExponential(2) : Math.round(n).toLocaleString('vi-VN'));
+
+return { SUITS, SUIT_SYM, RANKS, RANK_LABEL, HAND_TYPES, HAND_INFO, ANTE_BASE, STAKES, blindTarget, makeCard, standardDeck, DECKS, DECK_BY_ID, deckCards, cardLabel, JOKERS, JOKER_BY_ID, ruleFlags, detectHand, scorePlay, bestPlay, advise, bestJokerOrder, power, adviseShop, GOOD_TAGS, adviseSkip, fmt };
+})();
+</script>
+<script>
+(function () {
+  const E = window.BalatroEngine;
+  const Bridge = window.AndroidBridge || null;
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const ENH = [['', 'Không'], ['bonus', 'Bonus'], ['mult', 'Mult'], ['wild', 'Wild'], ['glass', 'Glass'], ['steel', 'Steel'], ['stone', 'Stone'], ['gold', 'Gold'], ['lucky', 'Lucky']];
+  const EDS = [['', 'Không'], ['foil', 'Foil'], ['holo', 'Holo'], ['poly', 'Poly']];
+  const JEDS = [['', '—'], ['foil', 'Foil'], ['holo', 'Holo'], ['poly', 'Poly'], ['neg', 'Neg']];
+  const SEALS = [['', 'Không'], ['gold', 'Gold'], ['red', 'Red'], ['blue', 'Blue'], ['purple', 'Purple']];
+  const SEAL_COLOR = { gold: '#d9a521', red: '#d8323a', blue: '#3a7fd8', purple: '#8a4fd6' };
+  const TAGS = Object.keys(E.GOOD_TAGS);
+
+  // ---------- Trạng thái ----------
+  const KEY = 'balatro-advisor-v1';
+  const defaults = () => ({
+    tab: 'round', deckType: 'red', stakeIdx: 0, ante: 1, blind: 0, target: 300, targetManual: false, score: 0,
+    hands: 4, discards: 3, money: 4, baseHands: 4, baseDiscards: 3, handSize: 8, jokerSlots: 5,
+    hand: [], seen: [], removed: [], deckMods: {}, extraCards: [], jokers: [], levels: {}, playedTypes: [],
+    boss: { flint: false, psychic: false, debuffSuit: '', debuffFace: false }, oops: false,
+    shop: [], skipTag: 'Negative', pickRank: null, selCard: null, advice: null,
+  });
+  let S = defaults();
+  try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(defaults(), JSON.parse(raw)); } catch (e) {}
+  S.advice = null;
+  function save() { try { const { advice, ...rest } = S; localStorage.setItem(KEY, JSON.stringify(rest)); } catch (e) {} }
+
+  // Bộ bài đầy đủ: 52 lá chuẩn − lá đã hủy + lá thêm; mang cải biến đã lưu
+  function fullDeck() {
+    const base = E.deckCards(S.deckType).filter((c) => !S.removed.includes(c.id));
+    const extra = S.extraCards.map((x) => E.makeCard(x.rank, x.suit, x));
+    return [...base, ...extra].map((c) => Object.assign(c, S.deckMods[c.id] || {}));
+  }
+  const handCards = () => S.hand.map((h) => E.makeCard(h.rank, h.suit, h));
+  function deckRemaining() {
+    const used = new Set([...S.hand.map((h) => h.deckId), ...S.seen]);
+    return fullDeck().filter((c) => !used.has(c.id));
+  }
+  function ctxBase() {
+    return {
+      jokers: S.jokers, levels: S.levels, money: S.money, jokerSlots: S.jokerSlots, handSize: S.handSize,
+      fullDeck: fullDeck(), playedTypes: new Set(S.playedTypes), boss: S.boss, oops: S.oops || S.jokers.some((j) => j.id === 'oops'),
+      stakeIdx: S.stakeIdx, ante: S.ante, hands: S.baseHands, discards: S.baseDiscards,
+      plasma: !!E.DECK_BY_ID[S.deckType]?.plasma, interestCap: E.DECK_BY_ID[S.deckType]?.noInterest ? 0 : 25,
+    };
+  }
+  function targetVal() { return S.targetManual ? S.target : E.blindTarget(S.stakeIdx, S.ante, S.blind, S.boss.wall ? 4 : 2) * (E.DECK_BY_ID[S.deckType]?.plasma ? 2 : 1); }
+  // Chọn deck: đặt lại chỉ số gốc và thành phần bộ bài
+  function applyDeck(id) {
+    const d = E.DECK_BY_ID[id] || E.DECKS[0];
+    S.deckType = d.id; S.removed = []; S.extraCards = []; S.deckMods = {}; S.seen = [];
+    S.baseHands = 4 + (d.hands || 0); S.baseDiscards = 3 + (d.discards || 0);
+    S.handSize = 8 + (d.hand || 0); S.jokerSlots = 5 + (d.slots || 0);
+    S.hands = S.baseHands; S.discards = S.baseDiscards; S.targetManual = false; S.advice = null;
+  }
+
+  // ---------- Thao tác lá ----------
+  function addCard(rank, suit) {
+    if (S.hand.length >= 12) return toast('Tay đã đủ lá');
+    const used = new Set([...S.hand.map((h) => h.deckId), ...S.seen]);
+    const d = fullDeck().find((c) => c.rank === rank && c.suit === suit && !used.has(c.id));
+    const card = d ? { rank, suit, deckId: d.id, id: 'h' + d.id, enh: d.enh, ed: d.ed, seal: d.seal } : { rank, suit, deckId: null, id: 'x' + Date.now() + Math.random(), enh: null, ed: null, seal: null };
+    S.hand.push(card); S.advice = null; save(); render();
+  }
+  function setMod(field, val) {
+    const c = S.hand.find((h) => h.id === S.selCard); if (!c) return;
+    c[field] = val || null;
+    if (c.deckId) { S.deckMods[c.deckId] = { ...(S.deckMods[c.deckId] || {}), [field]: val || null }; }
+    S.advice = null; save(); render();
+  }
+  function removeSel() { S.hand = S.hand.filter((h) => h.id !== S.selCard); S.selCard = null; S.advice = null; save(); render(); }
+
+  // ---------- Gợi ý ----------
+  function runAdvice() {
+    if (!S.hand.length) return toast('Nhập lá trên tay trước');
+    $('#adviceBox') && ($('#adviceBox').innerHTML = '<p class="reason">Đang tính…</p>');
+    setTimeout(() => {
+      const ctx = ctxBase();
+      const hand = handCards();
+      const a = E.advise({ ...ctx, hand, deckRemaining: deckRemaining(), need: targetVal() - S.score, handsLeft: S.hands, discardsLeft: S.discards }, { samples: 90 });
+      const order = E.bestJokerOrder({ ...ctx, hand }, { samples: 12 });
+      a.jokerOrder = order;
+      S.advice = a; render(); pushHighlight();
+    }, 30);
+  }
+  function applyAdvice() {
+    const a = S.advice; if (!a) return;
+    if (a.action === 'play') {
+      const ids = new Set(a.play.cards);
+      S.hand.filter((h) => ids.has(h.id)).forEach((h) => h.deckId && S.seen.push(h.deckId));
+      S.hand = S.hand.filter((h) => !ids.has(h.id));
+      S.score += a.play.score; S.hands = Math.max(0, S.hands - 1); S.money += Math.round(a.play.money || 0);
+      if (!S.playedTypes.includes(a.play.type)) S.playedTypes.push(a.play.type);
+      toast(S.score >= targetVal() ? 'Qua blind! Sang shop.' : `+${E.fmt(a.play.score)} điểm — nhập lá vừa rút`);
+    } else if (a.action === 'discard') {
+      const ids = new Set(a.discard.discard);
+      S.hand.filter((h) => ids.has(h.id)).forEach((h) => h.deckId && S.seen.push(h.deckId));
+      S.hand = S.hand.filter((h) => !ids.has(h.id));
+      S.discards = Math.max(0, S.discards - 1);
+      toast('Đã bỏ — nhập lá vừa rút');
+    }
+    S.advice = null; save(); render(); Bridge && Bridge.clearHighlight && Bridge.clearHighlight();
+  }
+  function newRound(nextBlind) {
+    if (nextBlind) { if (S.blind < 2) S.blind++; else { S.blind = 0; S.ante++; } }
+    S.score = 0; S.hands = S.baseHands; S.discards = S.baseDiscards; S.hand = []; S.seen = []; S.playedTypes = []; S.advice = null; S.targetManual = false;
+    S.boss = { flint: false, psychic: false, debuffSuit: '', debuffFace: false };
+    save(); render(); Bridge && Bridge.clearHighlight && Bridge.clearHighlight();
+  }
+
+  // ---------- Cầu nối Android (overlay + quét màn hình) ----------
+  let scanBoxes = {}; // id lá trên tay → khung trên màn hình
+  function pushHighlight() {
+    if (!Bridge || !Bridge.highlight || !S.advice) return;
+    const a = S.advice; const marks = [];
+    const ids = a.action === 'play' ? a.play.cards : a.action === 'discard' ? a.discard.discard : [];
+    ids.forEach((id) => { if (scanBoxes[id]) marks.push({ box: scanBoxes[id], color: a.action === 'play' ? '#4cc98f' : '#e8484e' }); });
+    const label = a.action === 'play' ? `ĐÁNH ${a.play.type} · ${E.fmt(a.play.score)}` : `BỎ ${ids.length} lá`;
+    Bridge.highlight(JSON.stringify({ marks, label }));
+  }
+  window.__onScan = function (json) {
+    let r; try { r = JSON.parse(json); } catch (e) { return toast('Không đọc được kết quả quét'); }
+    if (!r.cards || !r.cards.length) return toast('Không thấy lá nào — mở game ở màn chọn lá rồi quét lại');
+    S.hand = []; scanBoxes = {};
+    const unknown = [];
+    r.cards.forEach((c, i) => {
+      if (c.rank && c.suit) { addCardSilently(c.rank, c.suit); scanBoxes[S.hand[S.hand.length - 1].id] = c.box; }
+      else unknown.push({ ...c, slot: i });
+    });
+    S.advice = null; save(); render();
+    if (unknown.length) labelQueue(unknown); else toast(`Đã nhận ${r.cards.length} lá`);
+  };
+  function addCardSilently(rank, suit) {
+    const used = new Set([...S.hand.map((h) => h.deckId), ...S.seen]);
+    const d = fullDeck().find((c) => c.rank === rank && c.suit === suit && !used.has(c.id));
+    S.hand.push(d ? { rank, suit, deckId: d.id, id: 'h' + d.id, enh: d.enh, ed: d.ed, seal: d.seal } : { rank, suit, deckId: null, id: 'x' + Math.random(), enh: null, ed: null, seal: null });
+  }
+  // Dạy app nhận lá: hiện ảnh cắt, người chơi chọn số + chất một lần, app nhớ mẫu
+  function labelQueue(list) {
+    if (!list.length) {
+      $('#sheetHost').innerHTML = '';
+      // xếp lại đúng thứ tự trái → phải như trên màn hình game
+      S.hand.sort((a, b) => ((scanBoxes[a.id] || [1e9])[0]) - ((scanBoxes[b.id] || [1e9])[0]));
+      save(); render(); return;
+    }
+    const c = list[0]; let rk = null;
+    const host = $('#sheetHost');
+    host.innerHTML = `<div class="sheet" role="dialog" aria-label="Dạy nhận lá">
+      <div class="sec-h"><h2>Lá này là gì?</h2><small>Còn ${list.length} lá · chỉ cần dạy 1 lần</small></div>
+      <img src="${c.img}" alt="Ảnh lá bài cắt từ màn hình">
+      <div class="ranks">${E.RANKS.map((r) => `<button class="k" data-lr="${r}">${E.RANK_LABEL[r]}</button>`).join('')}</div>
+      <div class="suits">${E.SUITS.map((s) => `<button class="k suit-${s}" data-ls="${s}">${E.SUIT_SYM[s]}</button>`).join('')}</div>
+      <div class="row"><button class="btn" id="lblSkip">Bỏ qua lá này</button></div></div>`;
+    host.querySelectorAll('[data-lr]').forEach((b) => b.onclick = () => { rk = +b.dataset.lr; host.querySelectorAll('[data-lr]').forEach((x) => x.classList.toggle('on', x === b)); });
+    host.querySelectorAll('[data-ls]').forEach((b) => b.onclick = () => {
+      if (!rk) return toast('Chọn số trước');
+      Bridge && Bridge.learn && Bridge.learn(c.tid, rk, b.dataset.ls);
+      addCardSilently(rk, b.dataset.ls); scanBoxes[S.hand[S.hand.length - 1].id] = c.box;
+      labelQueue(list.slice(1));
+    });
+    $('#lblSkip').onclick = () => labelQueue(list.slice(1));
+  }
+
+  // ---------- Hiển thị ----------
+  function cardHTML(h, extra = '') {
+    const red = h.suit === 'H' || h.suit === 'D';
+    const stone = h.enh === 'stone';
+    return `<button class="card ${red ? 'red' : ''} ${h.ed ? 'ed-' + h.ed : ''} ${extra}" data-card="${h.id}" aria-label="${stone ? 'Stone' : E.RANK_LABEL[h.rank] + ' ' + h.suit}">
+      ${stone ? '<span>◼</span>' : `<span>${E.RANK_LABEL[h.rank]}</span><span class="s">${E.SUIT_SYM[h.suit]}</span>`}
+      ${h.enh && !stone ? `<span class="tag">${h.enh}</span>` : ''}
+      ${h.seal ? `<span class="seal" style="background:${SEAL_COLOR[h.seal]}"></span>` : ''}</button>`;
+  }
+  const opts = (list, v) => list.map(([k, l]) => `<option value="${k}" ${String(v || '') === k ? 'selected' : ''}>${l}</option>`).join('');
+
+  function viewRound() {
+    const a = S.advice;
+    const playIds = new Set(a && a.action === 'play' ? a.play.cards : []);
+    const discIds = new Set(a && a.action === 'discard' ? a.discard.discard : []);
+    const sel = S.hand.find((h) => h.id === S.selCard);
+    let adv = '';
+    if (a) {
+      const p = a.play;
+      const jo = a.jokerOrder && a.jokerOrder.changed ? `<p class="reason">Xếp lại joker: ${a.jokerOrder.order.map((j) => esc(E.JOKER_BY_ID[j.id]?.name || j.id)).join(' → ')} (+${Math.round(a.jokerOrder.gain * 100)}%) <button class="btn" id="applyOrder">Áp dụng</button></p>` : '';
+      if (a.action === 'play') adv = `<div class="advice play"><div class="verdict"><span class="act">ĐÁNH</span><b>${p.type}</b>
+        <span class="score"><span class="c">${E.fmt(p.chips)}</span> × <span class="m">${E.fmt(p.mult)}</span> = <b>${E.fmt(p.score)}</b></span></div>
+        <p class="reason">${esc(a.reason)}</p>${jo}
+        ${a.alternatives?.length ? `<div class="alts">${a.alternatives.map((x) => `<div><span>${x.type} · ${x.cards.length} lá</span><span class="score">${E.fmt(x.score)}</span></div>`).join('')}</div>` : ''}
+        <div class="row"><button class="btn go grow" id="doIt">Đã đánh xong</button></div></div>`;
+      else if (a.action === 'discard') adv = `<div class="advice discard"><div class="verdict"><span class="act">BỎ ${a.discard.discard.length} LÁ</span>
+        <span class="note">Nếu đánh ngay: ${p.type} ${E.fmt(p.score)}</span></div>
+        <p class="reason">${esc(a.reason)} Kỳ vọng sau khi rút: ~${E.fmt(a.discard.avg)} điểm.</p>${jo}
+        <div class="row"><button class="btn danger grow" id="doIt">Đã bỏ xong</button></div></div>`;
+    }
+    return `
+      <section class="sec-h"><h2>Tay bài</h2><small>${S.hand.length}/${S.handSize} lá · còn ${deckRemaining().length} lá trong bộ</small></section>
+      <div class="hand" id="hand">${S.hand.length ? S.hand.map((h) => cardHTML(h, `${h.id === S.selCard ? 'sel' : ''} ${playIds.has(h.id) ? 'play' : ''} ${discIds.has(h.id) ? 'disc' : ''}`)).join('') : '<div class="empty">Chạm số rồi chạm chất để thêm lá. Lá đã chạm có thể đổi Enhancement / Seal.</div>'}</div>
+      <div class="ask">
+        ${Bridge ? '<button class="btn" id="scan">Quét màn hình</button>' : ''}
+        <button class="btn primary grow" id="ask">Gợi ý nước đi</button>
+      </div>
+      <div id="adviceBox">${adv}</div>
+      ${sel ? `<div class="mods">
+        <label>Enhancement<select class="sel" id="mEnh">${opts(ENH, sel.enh)}</select></label>
+        <label>Edition<select class="sel" id="mEd">${opts(EDS, sel.ed)}</select></label>
+        <label>Seal<select class="sel" id="mSeal">${opts(SEALS, sel.seal)}</select></label></div>
+        <div class="row"><button class="btn danger" id="rmCard">Xóa lá</button><button class="btn" id="deselect">Xong</button></div>` : ''}
+      <div class="pad">
+        <div class="ranks">${E.RANKS.map((r) => `<button class="k ${S.pickRank === r ? 'on' : ''}" data-rank="${r}">${E.RANK_LABEL[r]}</button>`).join('')}<button class="k wide" id="clearHand">Xóa tay</button></div>
+        <div class="suits">${E.SUITS.map((s) => `<button class="k suit-${s}" data-suit="${s}" aria-label="Chất ${s}">${E.SUIT_SYM[s]}</button>`).join('')}</div>
+      </div>
+      <div class="row">
+        <button class="btn grow" id="nextBlind">Thắng blind → blind sau</button>
+        <button class="btn" id="resetRound">Làm lại vòng</button>
+      </div>
+      ${S.blind === 2 ? `<section class="sec-h"><h2>Luật boss</h2></section>
+      <div class="grid2">
+        <label><input type="checkbox" id="bFlint" ${S.boss.flint ? 'checked' : ''}> The Flint (½ gốc)</label>
+        <label><input type="checkbox" id="bPsy" ${S.boss.psychic ? 'checked' : ''}> The Psychic (5 lá)</label>
+        <label><input type="checkbox" id="bFace" ${S.boss.debuffFace ? 'checked' : ''}> The Plant (lá mặt)</label>
+        <label><input type="checkbox" id="bWall" ${S.boss.wall ? 'checked' : ''}> The Wall (×4)</label>
+        <label>Vô hiệu chất <select class="sel" id="bSuit">${opts([['', 'Không'], ['S', '♠ Goad'], ['H', '♥ Heart'], ['C', '♣ Club'], ['D', '♦ Window']], S.boss.debuffSuit)}</select></label>
+      </div>` : ''}`;
+  }
+
+  let jq = '';
+  function jokerResults(q, attr) {
+    const n = q.trim().toLowerCase();
+    const list = E.JOKERS.filter((j) => !n || j.name.toLowerCase().includes(n) || j.vi.toLowerCase().includes(n)).slice(0, 40);
+    return list.map((j) => `<button ${attr}="${j.id}"><b>${esc(j.name)}</b><small>${esc(j.vi)}</small></button>`).join('');
+  }
+  function viewJokers() {
+    return `
+      <section class="sec-h"><h2>Joker</h2><small>${S.jokers.length}/${S.jokerSlots} ô · trái → phải</small></section>
+      <div class="jlist">${S.jokers.length ? S.jokers.map((j, i) => {
+        const d = E.JOKER_BY_ID[j.id] || { name: j.id, vi: '' };
+        const val = d.value === 'custom' ? `<input id="jc${i}" data-jf="chips" data-ji="${i}" type="number" placeholder="+chip" value="${j.chips ?? ''}"><input data-jf="mult" data-ji="${i}" type="number" placeholder="+mult" value="${j.mult ?? ''}"><input data-jf="x" data-ji="${i}" type="number" step="0.1" placeholder="×" value="${j.x ?? ''}">`
+          : d.value === 'chat' ? `<select class="sel" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'H')}</select>`
+          : d.value === 'la' ? `<select class="sel" data-jf="rank" data-ji="${i}">${opts(E.RANKS.map((r) => [String(r), E.RANK_LABEL[r]]), String(j.rank || 14))}</select><select class="sel" data-jf="suit" data-ji="${i}">${opts(E.SUITS.map((s) => [s, E.SUIT_SYM[s]]), j.suit || 'S')}</select>`
+          : d.value === 'kichHoat' ? `<label class="note"><input type="checkbox" data-jf="v" data-ji="${i}" ${j.v ? 'checked' : ''}> đang ×4</label>`
+          : d.value ? `<input data-jf="v" data-ji="${i}" type="number" step="0.1" placeholder="${d.value === 'x' ? '×' : '+'}" value="${j.v ?? ''}" aria-label="Giá trị hiện tại">` : '';
+        return `<div class="joker"><span class="idx">${i + 1}</span><div class="nm"><b>${esc(d.name)}</b><small>${esc(d.vi)}</small></div>
+          <div class="ctl">${val}<select class="sel" data-jf="ed" data-ji="${i}" aria-label="Edition">${opts(JEDS, j.ed)}</select>
+          <button class="ib" data-jmove="${i}" data-d="-1" aria-label="Sang trái">↑</button><button class="ib" data-jmove="${i}" data-d="1" aria-label="Sang phải">↓</button><button class="ib" data-jdel="${i}" aria-label="Xóa">✕</button></div></div>`;
+      }).join('') : '<div class="empty">Chưa có joker. Tìm và thêm bên dưới.</div>'}</div>
+      <div class="row"><button class="btn primary grow" id="optOrder">Xếp thứ tự tối ưu</button></div>
+      <input class="search" id="jq" placeholder="Tìm joker: cavendish, flush, ×mult…" value="${esc(jq)}" autocomplete="off">
+      <div class="results" id="jres">${jokerResults(jq, 'data-jadd')}</div>
+      <p class="note">Joker chưa có trong danh sách: chọn "Joker khác (tự nhập)" và gõ +Chip / +Mult / ×Mult của nó.</p>`;
+  }
+
+  let sq = '', shopResult = null, skipResult = null;
+  function viewShop() {
+    return `
+      <section class="sec-h"><h2>Món trong shop</h2><small>$${S.money} đang có</small></section>
+      <div class="jlist">${S.shop.length ? S.shop.map((o, i) => `<div class="shopitem"><div><b>${esc(o.kind === 'joker' ? E.JOKER_BY_ID[o.joker.id]?.name : o.kind === 'planet' ? `${E.HAND_INFO[o.hand].planet} (${o.hand})` : o.name)}</b>
+        ${o.kind === 'joker' ? `<select class="sel" data-sed="${i}">${opts(JEDS, o.joker.ed)}</select>` : ''}</div>
+        <label class="note">$<input type="number" data-sprice="${i}" value="${o.price}" aria-label="Giá"></label><button class="ib" data-sdel="${i}" aria-label="Xóa">✕</button></div>`).join('') : '<div class="empty">Thêm joker hoặc planet đang bày trong shop.</div>'}</div>
+      <div class="row"><select class="sel grow" id="planetSel">${E.HAND_TYPES.map(([n, , , , , p]) => `<option value="${n}">${p} — ${n}</option>`).join('')}</select><button class="btn" id="addPlanet">+ Planet</button></div>
+      <input class="search" id="sq" placeholder="Thêm joker trong shop…" value="${esc(sq)}" autocomplete="off">
+      <div class="results" id="sres">${sq ? jokerResults(sq, 'data-sadd') : ''}</div>
+      <div class="row"><button class="btn primary grow" id="rateShop">Nên mua gì?</button></div>
+      <div id="shopOut">${shopResult ? shopResult : ''}</div>
+      <section class="sec-h"><h2>Có nên skip blind?</h2></section>
+      <div class="row"><select class="sel" id="tagSel">${TAGS.map((t) => `<option ${t === S.skipTag ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <button class="btn grow" id="rateSkip">Đánh giá skip ${['Small', 'Big', 'Boss'][S.blind]} Blind</button></div>
+      <div id="skipOut">${skipResult || ''}</div>`;
+  }
+
+  function viewSetup() {
+    const deck = fullDeck(); const ids = new Set(deck.map((c) => c.id));
+    const inHand = new Set(S.hand.map((h) => h.deckId));
+    return `
+      <section class="sec-h"><h2>Ván chơi</h2></section>
+      <label class="note">Deck<select class="sel" id="deckSel" style="width:100%">${E.DECKS.map((d) => `<option value="${d.id}" ${d.id === S.deckType ? 'selected' : ''}>${d.name} — ${d.vi}</option>`).join('')}</select></label>
+      <div class="grid2">
+        <label class="note">Stake<select class="sel" id="stake">${E.STAKES.map((s, i) => `<option value="${i}" ${i === S.stakeIdx ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label class="note">Kích thước tay<input class="sel" id="hsize" type="number" value="${S.handSize}"></label>
+        <label class="note">Lượt đánh mỗi vòng<input class="sel" id="bh" type="number" value="${S.baseHands}"></label>
+        <label class="note">Lượt bỏ mỗi vòng<input class="sel" id="bd" type="number" value="${S.baseDiscards}"></label>
+        <label class="note">Ô joker<input class="sel" id="slots" type="number" value="${S.jokerSlots}"></label>
+        <label class="note"><input type="checkbox" id="oops" ${S.oops ? 'checked' : ''}> Có Oops! All 6s</label>
+      </div>
+      <section class="sec-h"><h2>Level tay bài</h2><small>tăng khi dùng planet</small></section>
+      <div class="levels">${E.HAND_TYPES.map(([n]) => { const l = S.levels[n] || 1; const hi = E.HAND_INFO[n];
+        return `<div><span>${n} <span class="note">${hi.chips + hi.dc * (l - 1)}×${hi.mult + hi.dm * (l - 1)}</span></span><button class="ib" data-lv="${n}" data-d="-1" aria-label="Giảm level">−</button><b>${l}</b><button class="ib" data-lv="${n}" data-d="1" aria-label="Tăng level">+</button></div>`; }).join('')}</div>
+      <section class="sec-h"><h2>Bộ bài</h2><small>${deck.length} lá · chạm để đánh dấu lá đã bị hủy</small></section>
+      <div style="overflow-x:auto"><div class="deckgrid">${E.deckCards(S.deckType).map((c) => `<button class="${c.suit === 'H' || c.suit === 'D' ? 'red' : ''} ${ids.has(c.id) ? '' : 'gone'} ${inHand.has(c.id) ? 'inhand' : ''}" data-deck="${c.id}" aria-label="${c.id}">${E.RANK_LABEL[c.rank]}${E.SUIT_SYM[c.suit]}</button>`).join('')}</div></div>
+      <div class="row"><select class="sel" id="xr">${E.RANKS.map((r) => `<option value="${r}">${E.RANK_LABEL[r]}</option>`).join('')}</select><select class="sel" id="xs">${E.SUITS.map((s) => `<option value="${s}">${E.SUIT_SYM[s]}</option>`).join('')}</select>
+        <button class="btn" id="addExtra">+ Lá thêm (Cryptid, DNA…)</button></div>
+      ${S.extraCards.length ? `<p class="note">Lá thêm: ${S.extraCards.map((x, i) => `${E.RANK_LABEL[x.rank]}${E.SUIT_SYM[x.suit]} <button class="ib" data-xdel="${i}" aria-label="Xóa">✕</button>`).join(' ')}</p>` : ''}
+      <section class="sec-h"><h2>Bắt đầu lại</h2></section>
+      <div class="row"><button class="btn danger" id="newRun">Ván mới (xóa hết)</button></div>
+      <p class="note">Gợi ý dùng giá trị kỳ vọng cho hiệu ứng may rủi (Lucky, Misprint, Bloodstone). Dữ liệu lưu trên máy này.</p>`;
+  }
+
+  function renderHeader() {
+    const ante = $('#ante');
+    if (!ante.options.length) for (let i = 1; i <= 16; i++) ante.add(new Option('Ante ' + i, i));
+    ante.value = S.ante; $('#blindSel').value = S.blind;
+    const t = targetVal();
+    if (document.activeElement !== $('#target')) $('#target').value = t;
+    $('#scoreNow').textContent = E.fmt(S.score); $('#targetNum').textContent = E.fmt(t);
+    $('#needNum').textContent = E.fmt(Math.max(0, t - S.score));
+    $('#barFill').style.width = Math.min(100, (S.score / t) * 100) + '%';
+    $('#handsN').textContent = S.hands; $('#discardsN').textContent = S.discards; $('#moneyN').textContent = S.money;
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
+  }
+  function render() {
+    renderHeader();
+    const v = $('#view');
+    v.innerHTML = S.tab === 'round' ? viewRound() : S.tab === 'jokers' ? viewJokers() : S.tab === 'shop' ? viewShop() : viewSetup();
+    bind();
+  }
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200); }
+
+  // ---------- Sự kiện ----------
+  function bind() {
+    const v = $('#view');
+    const on = (sel, ev, fn) => { const el = v.querySelector(sel); if (el) el[ev] = fn; };
+    v.querySelectorAll('[data-rank]').forEach((b) => b.onclick = () => { S.pickRank = +b.dataset.rank; render(); });
+    v.querySelectorAll('[data-suit]').forEach((b) => b.onclick = () => { if (!S.pickRank) return toast('Chạm số trước'); addCard(S.pickRank, b.dataset.suit); });
+    v.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { S.selCard = S.selCard === b.dataset.card ? null : b.dataset.card; render(); });
+    on('#ask', 'onclick', runAdvice);
+    on('#scan', 'onclick', () => Bridge.scan(S.handSize || 8));
+    on('#doIt', 'onclick', applyAdvice);
+    on('#applyOrder', 'onclick', () => { S.jokers = S.advice.jokerOrder.order; S.advice = null; save(); runAdvice(); });
+    on('#mEnh', 'onchange', (e) => setMod('enh', e.target.value));
+    on('#mEd', 'onchange', (e) => setMod('ed', e.target.value));
+    on('#mSeal', 'onchange', (e) => setMod('seal', e.target.value));
+    on('#rmCard', 'onclick', removeSel);
+    on('#deselect', 'onclick', () => { S.selCard = null; render(); });
+    on('#clearHand', 'onclick', () => { S.hand = []; S.advice = null; save(); render(); });
+    on('#nextBlind', 'onclick', () => { newRound(true); S.tab = 'shop'; render(); });
+    on('#resetRound', 'onclick', () => newRound(false));
+    const boss = (id, k) => on(id, 'onchange', (e) => { S.boss[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; S.advice = null; save(); render(); });
+    boss('#bFlint', 'flint'); boss('#bPsy', 'psychic'); boss('#bFace', 'debuffFace'); boss('#bSuit', 'debuffSuit'); boss('#bWall', 'wall');
+    // Joker
+    on('#jq', 'oninput', (e) => { jq = e.target.value; $('#jres').innerHTML = jokerResults(jq, 'data-jadd'); bindAdd(); });
+    function bindAdd() { v.querySelectorAll('[data-jadd]').forEach((b) => b.onclick = () => { if (S.jokers.length >= S.jokerSlots + S.jokers.filter((j) => j.ed === 'neg').length) return toast('Hết ô joker — tăng số ô trong Cài đặt'); S.jokers.push({ id: b.dataset.jadd }); jq = ''; save(); render(); }); }
+    bindAdd();
+    v.querySelectorAll('[data-jf]').forEach((el) => el.onchange = () => { const j = S.jokers[+el.dataset.ji]; const f = el.dataset.jf; j[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (el.value === '' ? undefined : +el.value) : f === 'rank' ? +el.value : (el.value || null); S.advice = null; save(); });
+    v.querySelectorAll('[data-jmove]').forEach((b) => b.onclick = () => { const i = +b.dataset.jmove, k = i + +b.dataset.d; if (k < 0 || k >= S.jokers.length) return; [S.jokers[i], S.jokers[k]] = [S.jokers[k], S.jokers[i]]; save(); render(); });
+    v.querySelectorAll('[data-jdel]').forEach((b) => b.onclick = () => { S.jokers.splice(+b.dataset.jdel, 1); save(); render(); });
+    on('#optOrder', 'onclick', () => { const r = E.bestJokerOrder({ ...ctxBase(), hand: handCards() }, { samples: 25 }); if (!r.changed) return toast('Thứ tự hiện tại đã tối ưu'); S.jokers = r.order; save(); render(); toast('Đã xếp lại thứ tự joker'); });
+    // Shop
+    on('#sq', 'oninput', (e) => { sq = e.target.value; $('#sres').innerHTML = sq ? jokerResults(sq, 'data-sadd') : ''; bindShopAdd(); });
+    function bindShopAdd() { v.querySelectorAll('[data-sadd]').forEach((b) => b.onclick = () => { const d = E.JOKER_BY_ID[b.dataset.sadd]; S.shop.push({ kind: 'joker', joker: { id: d.id }, price: [0, 5, 6, 8, 20][d.r] || 5 }); sq = ''; shopResult = null; save(); render(); }); }
+    bindShopAdd();
+    on('#addPlanet', 'onclick', () => { S.shop.push({ kind: 'planet', hand: $('#planetSel').value, price: 3 }); shopResult = null; save(); render(); });
+    v.querySelectorAll('[data-sprice]').forEach((el) => el.onchange = () => { S.shop[+el.dataset.sprice].price = +el.value; save(); });
+    v.querySelectorAll('[data-sed]').forEach((el) => el.onchange = () => { S.shop[+el.dataset.sed].joker.ed = el.value || null; save(); });
+    v.querySelectorAll('[data-sdel]').forEach((b) => b.onclick = () => { S.shop.splice(+b.dataset.sdel, 1); shopResult = null; save(); render(); });
+    on('#rateShop', 'onclick', () => {
+      if (!S.shop.length) return toast('Thêm món trong shop trước');
+      $('#shopOut').innerHTML = '<p class="reason">Đang mô phỏng…</p>';
+      setTimeout(() => {
+        const r = E.adviseShop({ ...ctxBase(), jokers: S.jokers }, S.shop, { samples: 40 });
+        const req = E.blindTarget(S.stakeIdx, S.ante, 2);
+        shopResult = `<p class="reason">Sức điểm hiện tại ~${E.fmt(r.base)}/tay · Boss ante ${S.ante} cần ${E.fmt(req)} trong ${S.baseHands} tay.</p>` + r.items.map((it, k) => `<div class="shopitem"><div><b>${k + 1}. ${esc(it.kind === 'joker' ? E.JOKER_BY_ID[it.joker.id]?.name : it.kind === 'planet' ? E.HAND_INFO[it.hand].planet : it.name)}</b>
+          <div class="note">${it.note ? esc(it.note) + ' · ' : ''}${it.afford ? '' : 'không đủ tiền · '}${it.lostInterest ? `mất $${it.lostInterest} lãi/vòng` : 'không mất lãi'}</div></div>
+          <span class="gain ${it.gain > 0.1 ? 'up' : 'low'}">${it.gain == null ? '?' : (it.gain >= 0 ? '+' : '') + Math.round(it.gain * 100) + '%'}</span><span class="note">$${it.price}</span></div>`).join('') +
+          '<p class="note">% = mức tăng điểm trung bình mỗi tay. Món tăng dưới 10% thường không đáng phá mốc lãi.</p>';
+        render();
+      }, 30);
+    });
+    on('#tagSel', 'onchange', (e) => { S.skipTag = e.target.value; save(); });
+    on('#rateSkip', 'onclick', () => {
+      if (S.blind === 2) { skipResult = '<p class="reason">Boss Blind không skip được.</p>'; return render(); }
+      const r = E.adviseSkip({ ...ctxBase() }, S.blind, S.skipTag);
+      skipResult = `<div class="advice ${r.skip ? 'play' : 'discard'}"><div class="verdict"><span class="act">${r.skip ? 'NÊN SKIP' : 'KHÔNG SKIP'}</span></div>
+        <p class="reason">Ước tính cả vòng ~${E.fmt(r.roundCap)} điểm; blind sau cần ${E.fmt(r.nextReq)}, boss cần ${E.fmt(r.bossReq)} (dư ${Math.round((r.margin - 1) * 100)}%). Tag ${esc(S.skipTag)}: giá trị ${r.tagValue}/5.</p></div>`;
+      render();
+    });
+    // Cài đặt
+    const num = (id, k, after) => on(id, 'onchange', (e) => { S[k] = Math.max(0, +e.target.value || 0); after && after(); save(); render(); });
+    on('#deckSel', 'onchange', (e) => { applyDeck(e.target.value); save(); render(); toast('Đã đổi deck — đã đặt lại lượt đánh/bỏ, ô joker, bộ bài'); });
+    on('#stake', 'onchange', (e) => { S.stakeIdx = +e.target.value; S.targetManual = false; save(); render(); });
+    num('#hsize', 'handSize'); num('#slots', 'jokerSlots');
+    num('#bh', 'baseHands', () => (S.hands = S.baseHands)); num('#bd', 'baseDiscards', () => (S.discards = S.baseDiscards));
+    on('#oops', 'onchange', (e) => { S.oops = e.target.checked; save(); });
+    v.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { const n = b.dataset.lv; S.levels[n] = Math.max(1, (S.levels[n] || 1) + +b.dataset.d); S.advice = null; save(); render(); });
+    v.querySelectorAll('[data-deck]').forEach((b) => b.onclick = () => { const id = b.dataset.deck; S.removed = S.removed.includes(id) ? S.removed.filter((x) => x !== id) : [...S.removed, id]; save(); render(); });
+    on('#addExtra', 'onclick', () => { S.extraCards.push({ rank: +$('#xr').value, suit: $('#xs').value, id: 'x' + Date.now() }); save(); render(); });
+    v.querySelectorAll('[data-xdel]').forEach((b) => b.onclick = () => { S.extraCards.splice(+b.dataset.xdel, 1); save(); render(); });
+    let armed = false;
+    on('#newRun', 'onclick', (e) => { if (!armed) { armed = true; e.target.textContent = 'Chạm lần nữa để xóa'; return; } const keep = S.deckType; S = defaults(); applyDeck(keep); S.money = 4 + (E.DECK_BY_ID[keep]?.money || 0); save(); render(); toast('Đã tạo ván mới'); });
+  }
+
+  // Thanh trên
+  $('#ante').onchange = (e) => { S.ante = +e.target.value; S.targetManual = false; save(); render(); };
+  $('#blindSel').onchange = (e) => { S.blind = +e.target.value; S.targetManual = false; save(); render(); };
+  $('#target').onchange = (e) => { S.target = +e.target.value || 0; S.targetManual = true; save(); render(); };
+  document.querySelectorAll('[data-ctr]').forEach((b) => b.onclick = () => { const k = b.dataset.ctr; S[k] = Math.max(0, S[k] + +b.dataset.d); S.advice = null; save(); renderHeader(); if (S.tab === 'round') render(); });
+  $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.tab; save(); render(); };
+
+  // Ví dụ khi mở lần đầu: một tay bài mẫu để thấy tool hoạt động
+  if (!S.hand.length && !S.jokers.length && !S.example) {
+    S.example = true;
+    [[14, 'S'], [13, 'S'], [7, 'S'], [4, 'S'], [9, 'H'], [9, 'D'], [3, 'C'], [11, 'D']].forEach(([r, s]) => addCardSilently(r, s));
+    S.jokers = [{ id: 'joker' }, { id: 'droll' }];
+    save();
+    setTimeout(() => toast('Tay bài mẫu — xóa và nhập tay của bạn'), 400);
+  }
+  render();
+  // Trong cửa sổ nổi Android, hộp chọn gốc của WebView bị crash → thay bằng bảng chọn tự vẽ.
+  if (Bridge) {
+    const openPicker = (sel) => {
+      const host = $('#sheetHost');
+      host.innerHTML = `<div class="sheet" role="dialog" aria-label="Chọn"><div class="results">${[...sel.options].map((o, i) =>
+        `<button data-pick="${i}" ${o.selected ? 'style="color:var(--gold)"' : ''}>${esc(o.text)}</button>`).join('')}</div>
+        <button class="btn" id="pickClose">Đóng</button></div>`;
+      host.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
+        sel.selectedIndex = +b.dataset.pick; host.innerHTML = '';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      $('#pickClose').onclick = () => (host.innerHTML = '');
+    };
+    const block = (e) => { const s = e.target.closest && e.target.closest('select'); if (!s) return; e.preventDefault(); e.stopPropagation(); if (e.type === 'click' || e.type === 'touchend') openPicker(s); };
+    ['touchstart', 'touchend', 'mousedown', 'click'].forEach((t) => document.addEventListener(t, block, { capture: true, passive: false }));
+  }
+  window.__advisor = { state: () => S, render };
+  window.__toast = toast;
+})();
+</script>
